@@ -1,0 +1,137 @@
+import 'package:flutter/material.dart';
+import 'package:doctor_appointment_app/views/home/widgets/home_banner.dart';
+import 'package:doctor_appointment_app/views/home/widgets/recent_facilities_section.dart';
+
+class HomeContent extends StatelessWidget {
+  const HomeContent({
+    super.key,
+    required this.onSeeAllTap,
+    required this.onSearchTap,
+    required this.onNotificationTap,
+  });
+
+  final VoidCallback onSeeAllTap;
+  final VoidCallback onSearchTap;
+  final VoidCallback onNotificationTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(24, 8, 0, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _Header(onNotificationTap: onNotificationTap),
+            const SizedBox(height: 14),
+            _SearchBar(onTap: onSearchTap),
+            const SizedBox(height: 14),
+            const Padding(
+              padding: EdgeInsets.only(right: 24),
+              child: HomeBanner(),
+            ),
+            const SizedBox(height: 16),
+            RecentFacilitiesSection(onSeeAllTap: onSeeAllTap),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({required this.onNotificationTap});
+
+  final VoidCallback onNotificationTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Location',
+                style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+              ),
+              SizedBox(height: 4),
+              Row(
+                children: [
+                  Icon(Icons.location_on, size: 18, color: Color(0xFF1C2A3A)),
+                  SizedBox(width: 7),
+                  Text(
+                    'Quận Nam Từ Liêm, Hà Nội',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF374151),
+                    ),
+                  ),
+                  SizedBox(width: 4),
+                  Icon(Icons.keyboard_arrow_down, size: 16),
+                ],
+              ),
+            ],
+          ),
+          InkWell(
+            onTap: onNotificationTap,
+            borderRadius: BorderRadius.circular(72),
+            child: Container(
+              width: 34,
+              height: 34,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF3F4F6),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.notifications,
+                size: 20,
+                color: Color(0xFF4B5563),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SearchBar extends StatelessWidget {
+  const _SearchBar({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 24),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3F4F6),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: const Row(
+            children: [
+              Icon(Icons.search, color: Color(0xFF9CA3AF)),
+              SizedBox(width: 12),
+              Text(
+                'Tìm kiếm bác sĩ...',
+                style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
