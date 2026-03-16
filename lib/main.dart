@@ -1,7 +1,13 @@
+import 'package:doctor_appointment_app/data/implementations/local/database_helper.dart';
 import 'package:doctor_appointment_app/views/onboarding/splash_screen.dart';
 import 'package:flutter/material.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize the SQLite database at app startup
+  await DatabaseHelper.instance.database;
+
   runApp(const MyApp());
 }
 
