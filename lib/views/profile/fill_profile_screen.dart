@@ -1,3 +1,4 @@
+import 'package:doctor_appointment_app/viewmodels/login/auth_viewmodel.dart';
 import 'package:doctor_appointment_app/views/home/home_screen.dart';
 import 'package:doctor_appointment_app/views/profile/fill_profile_success_dialog.dart';
 import 'package:flutter/material.dart';
@@ -12,11 +13,21 @@ class FillProfileScreen extends StatefulWidget {
 class _FillProfileScreenState extends State<FillProfileScreen> {
   static const String _profileAsset = 'assets/images/profile.png';
 
-  final _nameController = TextEditingController(text: 'Nguyễn Văn A');
+  late final TextEditingController _nameController;
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _birthController = TextEditingController();
   String? _gender;
+
+  final _authViewModel = AuthViewModel();
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize with current user name if available
+    _nameController = TextEditingController(text: _authViewModel.currentUser?.name ?? '');
+  }
 
   @override
   void dispose() {
@@ -28,12 +39,51 @@ class _FillProfileScreenState extends State<FillProfileScreen> {
   }
 
   Future<void> _onSave() async {
-    await FillProfileSuccessDialog.show(context);
-    if (!mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
-      (route) => false,
+    // FIX: Validate tên không được để trống
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Vui lòng nhập họ và tên'),
+          backgroundColor: Color(0xFFEF4444), // Màu đỏ thông báo lỗi
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final email = _authViewModel.currentUser?.email;
+    if (email == null) return;
+
+    setState(() => _isLoading = true);
+
+    final success = await _authViewModel.updateProfile(
+      email: email,
+      name: name,
+      phone: _phoneController.text.trim(),
+      address: _addressController.text.trim(),
+      birthDate: _birthController.text.trim(),
+      gender: _gender,
     );
+
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (success) {
+      await FillProfileSuccessDialog.show(context);
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
+            (route) => false,
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(_authViewModel.errorMessage ?? 'Lỗi khi lưu hồ sơ'),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+    }
   }
 
   @override
@@ -58,18 +108,20 @@ class _FillProfileScreenState extends State<FillProfileScreen> {
           ),
         ),
       ),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
         child: Column(
           children: [
             Stack(
+              alignment: Alignment.center, // thêm dòng này
+              clipBehavior: Clip.none,     // thêm dòng này
               children: [
                 Container(
                   width: 202,
                   height: 202,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFFE5E7EB).withValues(alpha: 0.4),
+                    color: const Color(0xFFE5E7EB).withOpacity(0.4),
                   ),
                   child: ClipOval(
                     child: Image.asset(
@@ -119,6 +171,17 @@ class _FillProfileScreenState extends State<FillProfileScreen> {
                 size: 18,
                 color: Color(0xFF9CA3AF),
               ),
+              onTap: () async {
+                DateTime? pickedDate = await showDatePicker(
+                  context: context,
+                  initialDate: DateTime.now(),
+                  firstDate: DateTime(1900),
+                  lastDate: DateTime.now(),
+                );
+                if (pickedDate != null) {
+                  _birthController.text = "${pickedDate.day}/${pickedDate.month}/${pickedDate.year}";
+                }
+              },
             ),
             const SizedBox(height: 20),
             Container(
@@ -145,20 +208,20 @@ class _FillProfileScreenState extends State<FillProfileScreen> {
                     color: Color(0xFF9CA3AF),
                   ),
                   items: const [
-                    DropdownMenuItem(value: 'male', child: Text('Nam')),
-                    DropdownMenuItem(value: 'female', child: Text('Nữ')),
-                    DropdownMenuItem(value: 'other', child: Text('Khác')),
+                    DropdownMenuItem(value: 'Nam', child: Text('Nam')),
+                    DropdownMenuItem(value: 'Nữ', child: Text('Nữ')),
+                    DropdownMenuItem(value: 'Khác', child: Text('Khác')),
                   ],
                   onChanged: (value) => setState(() => _gender = value),
                 ),
               ),
             ),
-            const Spacer(),
+            const SizedBox(height: 40),
             SizedBox(
               width: double.infinity,
               height: 48,
               child: ElevatedButton(
-                onPressed: _onSave,
+                onPressed: _isLoading ? null : _onSave,
                 style: ElevatedButton.styleFrom(
                   elevation: 0,
                   backgroundColor: const Color(0xFF1C2A3A),
@@ -166,7 +229,9 @@ class _FillProfileScreenState extends State<FillProfileScreen> {
                     borderRadius: BorderRadius.circular(55),
                   ),
                 ),
-                child: const Text(
+                child: _isLoading
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
                   'Lưu',
                   style: TextStyle(
                     color: Colors.white,
@@ -189,12 +254,14 @@ class _FormInput extends StatelessWidget {
     required this.hint,
     this.keyboardType,
     this.prefixIcon,
+    this.onTap,
   });
 
   final TextEditingController controller;
   final String hint;
   final TextInputType? keyboardType;
   final Widget? prefixIcon;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -203,6 +270,8 @@ class _FormInput extends StatelessWidget {
       child: TextField(
         controller: controller,
         keyboardType: keyboardType,
+        onTap: onTap,
+        readOnly: onTap != null,
         decoration: InputDecoration(
           hintText: hint,
           hintStyle: const TextStyle(
