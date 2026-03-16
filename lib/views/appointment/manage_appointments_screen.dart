@@ -68,7 +68,19 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
                 animation: _store,
                 builder: (context, _) {
                   if (!_store.isLoaded) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 12),
+                          Text(
+                            'Đang tải lịch hẹn...',
+                            style: TextStyle(color: Color(0xFF6B7280)),
+                          ),
+                        ],
+                      ),
+                    );
                   }
 
                   final upcomingBookings = _store.upcomingBookings;

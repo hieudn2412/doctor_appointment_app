@@ -1,9 +1,15 @@
 import 'package:doctor_appointment_app/views/appointment/models/appointment_booking.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 
 class AppointmentDatabase {
-  AppointmentDatabase._();
+  AppointmentDatabase._() {
+    if (kIsWeb) {
+      databaseFactory = databaseFactoryFfiWeb;
+    }
+  }
 
   static final AppointmentDatabase instance = AppointmentDatabase._();
 

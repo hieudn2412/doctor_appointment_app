@@ -151,7 +151,9 @@ class AppointmentBookingStore extends ChangeNotifier {
 
   Future<void> _loadBookings() async {
     try {
-      final storedBookings = await _database.getAllBookings();
+      final storedBookings = await _database.getAllBookings().timeout(
+        const Duration(seconds: 5),
+      );
       if (storedBookings.isEmpty) {
         final seeds = _seedBookings;
         _bookings
