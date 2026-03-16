@@ -1,11 +1,10 @@
+import 'package:doctor_appointment_app/views/appointment/data/appointment_booking_store.dart';
+import 'package:doctor_appointment_app/views/appointment/manage_appointments_screen.dart';
 import 'package:doctor_appointment_app/views/home/models/doctor_item.dart';
 import 'package:flutter/material.dart';
 
 class AppointmentScreen extends StatefulWidget {
-  const AppointmentScreen({
-    super.key,
-    required this.doctor,
-  });
+  const AppointmentScreen({super.key, required this.doctor});
 
   final DoctorItem doctor;
 
@@ -49,7 +48,10 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       children: [
                         IconButton(
                           onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(Icons.arrow_back, color: Color(0xFF374151)),
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Color(0xFF374151),
+                          ),
                         ),
                         const Expanded(
                           child: Text(
@@ -90,12 +92,13 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _timeSlots.length,
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 3,
-                        mainAxisSpacing: 10,
-                        crossAxisSpacing: 10,
-                        childAspectRatio: 2.2,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 2.2,
+                          ),
                       itemBuilder: (context, index) {
                         final slot = _timeSlots[index];
                         final selected = slot == _selectedTime;
@@ -105,7 +108,9 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                           child: Container(
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: selected ? const Color(0xFF1C2A3A) : const Color(0xFFF9FAFB),
+                              color: selected
+                                  ? const Color(0xFF1C2A3A)
+                                  : const Color(0xFFF9FAFB),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -113,7 +118,9 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: selected ? Colors.white : const Color(0xFF6B7280),
+                                color: selected
+                                    ? Colors.white
+                                    : const Color(0xFF6B7280),
                               ),
                             ),
                           ),
@@ -136,10 +143,14 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       borderRadius: BorderRadius.circular(50),
                     ),
                   ),
-                  onPressed: _showSuccessDialog,
+                  onPressed: _confirmBooking,
                   child: const Text(
                     'Xác nhận',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
                   ),
                 ),
               ),
@@ -158,7 +169,11 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
         color: const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
-          BoxShadow(color: Color(0x12000000), blurRadius: 8, offset: Offset(0, 4)),
+          BoxShadow(
+            color: Color(0x12000000),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
         ],
       ),
       child: Column(
@@ -168,7 +183,11 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
             children: [
               Text(
                 'Tháng 3 2026',
-                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111928)),
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF111928),
+                ),
               ),
               Row(
                 children: [
@@ -182,7 +201,13 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
           const Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Text('CN'), Text('T2'), Text('T3'), Text('T4'), Text('T5'), Text('T6'), Text('T7'),
+              Text('CN'),
+              Text('T2'),
+              Text('T3'),
+              Text('T4'),
+              Text('T5'),
+              Text('T6'),
+              Text('T7'),
             ],
           ),
           const SizedBox(height: 8),
@@ -203,11 +228,15 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               final faded = day > 31;
               return InkWell(
                 borderRadius: BorderRadius.circular(8),
-                onTap: day <= 31 ? () => setState(() => _selectedDay = visibleDay) : null,
+                onTap: day <= 31
+                    ? () => setState(() => _selectedDay = visibleDay)
+                    : null,
                 child: Container(
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: selected ? const Color(0xFF1C2A3A) : Colors.transparent,
+                    color: selected
+                        ? const Color(0xFF1C2A3A)
+                        : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -217,7 +246,9 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       fontWeight: FontWeight.w600,
                       color: selected
                           ? Colors.white
-                          : (faded ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
+                          : (faded
+                                ? const Color(0xFFCBD5E1)
+                                : const Color(0xFF475569)),
                     ),
                   ),
                 ),
@@ -229,14 +260,50 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     );
   }
 
-  void _showSuccessDialog() {
-    showDialog<void>(
+  Future<void> _confirmBooking() async {
+    final bookingDateTime = _selectedDateTime;
+    await AppointmentBookingStore.instance.addBooking(
+      doctor: widget.doctor,
+      dateTime: bookingDateTime,
+    );
+    await _showSuccessDialog(bookingDateTime);
+  }
+
+  DateTime get _selectedDateTime {
+    final parts = _selectedTime.split(' ');
+    final clock = parts.first.split('.');
+    var hour = int.parse(clock[0]);
+    final minute = int.parse(clock[1]);
+    final meridiem = parts.last;
+    if (meridiem == 'PM' && hour < 12) {
+      hour += 12;
+    } else if (meridiem == 'AM' && hour == 12) {
+      hour = 0;
+    }
+    return DateTime(2026, 3, _selectedDay, hour, minute);
+  }
+
+  String _formatClock(DateTime dateTime) {
+    final isPm = dateTime.hour >= 12;
+    var hour = dateTime.hour % 12;
+    if (hour == 0) {
+      hour = 12;
+    }
+    final hh = hour.toString().padLeft(2, '0');
+    final mm = dateTime.minute.toString().padLeft(2, '0');
+    return '$hh:$mm ${isPm ? 'PM' : 'AM'}';
+  }
+
+  Future<void> _showSuccessDialog(DateTime bookingDateTime) {
+    return showDialog<void>(
       context: context,
       barrierDismissible: true,
       builder: (context) {
         return Dialog(
           insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(32),
+          ),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
             child: Column(
@@ -254,13 +321,21 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                 const SizedBox(height: 16),
                 const Text(
                   'Hoàn tất!!',
-                  style: TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: Color(0xFF1F2A37)),
+                  style: TextStyle(
+                    fontSize: 36,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF1F2A37),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Lịch hẹn của bạn với ${widget.doctor.name} đã được xác nhận vào lúc $_selectedTime, ngày $_selectedDay tháng 3 năm 2026.',
+                  'Lịch hẹn của bạn với ${widget.doctor.name} đã được xác nhận vào lúc ${_formatClock(bookingDateTime)}, ngày ${bookingDateTime.day} tháng ${bookingDateTime.month} năm ${bookingDateTime.year}.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF6B7280)),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    height: 1.5,
+                    color: Color(0xFF6B7280),
+                  ),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
@@ -269,19 +344,32 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1F2A44),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(50),
+                      ),
                     ),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(this.context).pushReplacement(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ManageAppointmentsScreen(),
+                        ),
+                      );
+                    },
                     child: const Text(
-                      'Xong',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                      'Xem lịch hẹn',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                      ),
                     ),
                   ),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text(
-                    'Chỉnh sửa lịch hẹn',
+                    'Đặt lịch khác',
                     style: TextStyle(color: Color(0xFF6B7280)),
                   ),
                 ),
