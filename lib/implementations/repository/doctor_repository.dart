@@ -1,12 +1,13 @@
+import 'package:doctor_appointment_app/data/implementations/local/database_helper.dart';
 import 'package:doctor_appointment_app/implementations/local/app_database.dart';
 import 'package:doctor_appointment_app/views/home/models/doctor_item.dart'; // Đảm bảo đúng path
 
 class DoctorRepository {
-  final dbHelper = AppDatabase.instance;
+  final dbHelper = DatabaseHelper.instance;
 
   // Lấy toàn bộ danh sách bác sĩ
   Future<List<DoctorItem>> getAllDoctors() async {
-    final db = await dbHelper.db;
+    final db = await dbHelper.database;
     final result = await db.query('doctors');
 
     return result.map((json) => DoctorItem(
@@ -23,7 +24,7 @@ class DoctorRepository {
 
   // Tìm kiếm bác sĩ theo tên hoặc chuyên khoa
   Future<List<DoctorItem>> searchDoctors(String query) async {
-    final db = await dbHelper.db;
+    final db = await dbHelper.database;
     final result = await db.query(
       'doctors',
       where: 'name LIKE ? OR specialty LIKE ?',

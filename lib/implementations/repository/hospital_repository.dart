@@ -1,11 +1,12 @@
+import 'package:doctor_appointment_app/data/implementations/local/database_helper.dart';
 import 'package:doctor_appointment_app/implementations/local/app_database.dart';
 import 'package:doctor_appointment_app/views/home/models/hospital_item.dart';
 
 class HospitalRepository {
-  final dbHelper = AppDatabase.instance;
+  final dbHelper = DatabaseHelper.instance;
 
   Future<List<HospitalItem>> getAllHospitals() async {
-    final db = await dbHelper.db;
+    final db = await dbHelper.database;
     final result = await db.query('hospitals');
 
     return result.map((json) => HospitalItem(
