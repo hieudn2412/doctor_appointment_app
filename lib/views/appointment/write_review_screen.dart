@@ -86,7 +86,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                               widget.imagePath,
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) =>
-                                  const ColoredBox(
+                              const ColoredBox(
                                 color: Color(0xFFE5E7EB),
                                 child: Icon(Icons.person, size: 36, color: Color(0xFF6B7280)),
                               ),
@@ -198,7 +198,7 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                           child: _ActionButton(
                             text: 'Gửi',
                             isPrimary: true,
-                            onTap: () => Navigator.of(context).pop(),
+                            onTap: _showSubmittedDialog,
                           ),
                         ),
                       ],
@@ -224,6 +224,66 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showSubmittedDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) {
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 96,
+                  height: 96,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFA8CCC0),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.check, size: 40, color: Colors.white),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Cảm ơn bạn!',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: Color(0xFF1F2A37)),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Đánh giá của bạn đã được gửi thành công.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF6B7280)),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: 48,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1F2A44),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop(); // dialog
+                      Navigator.of(this.context).pop(); // screen
+                    },
+                    child: const Text(
+                      'Xong',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

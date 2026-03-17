@@ -1,10 +1,12 @@
 import 'package:doctor_appointment_app/views/appointment/data/appointment_booking_store.dart';
-import 'package:doctor_appointment_app/views/appointment/manage_appointments_screen.dart';
 import 'package:doctor_appointment_app/views/home/models/doctor_item.dart';
 import 'package:flutter/material.dart';
 
 class AppointmentScreen extends StatefulWidget {
-  const AppointmentScreen({super.key, required this.doctor});
+  const AppointmentScreen({
+    super.key,
+    required this.doctor,
+  });
 
   final DoctorItem doctor;
 
@@ -13,8 +15,10 @@ class AppointmentScreen extends StatefulWidget {
 }
 
 class _AppointmentScreenState extends State<AppointmentScreen> {
-  int _selectedDay = 30;
+  DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime? _selectedDate;
   String _selectedTime = '10.00 AM';
+  bool _isSaving = false;
 
   static const List<String> _timeSlots = [
     '09.00 AM',
@@ -48,10 +52,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       children: [
                         IconButton(
                           onPressed: () => Navigator.of(context).pop(),
-                          icon: const Icon(
-                            Icons.arrow_back,
-                            color: Color(0xFF374151),
-                          ),
+                          icon: const Icon(Icons.arrow_back, color: Color(0xFF374151)),
                         ),
                         const Expanded(
                           child: Text(
@@ -92,13 +93,12 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _timeSlots.length,
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            mainAxisSpacing: 10,
-                            crossAxisSpacing: 10,
-                            childAspectRatio: 2.2,
-                          ),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 3,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 2.2,
+                      ),
                       itemBuilder: (context, index) {
                         final slot = _timeSlots[index];
                         final selected = slot == _selectedTime;
@@ -108,9 +108,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                           child: Container(
                             alignment: Alignment.center,
                             decoration: BoxDecoration(
-                              color: selected
-                                  ? const Color(0xFF1C2A3A)
-                                  : const Color(0xFFF9FAFB),
+                              color: selected ? const Color(0xFF1C2A3A) : const Color(0xFFF9FAFB),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
@@ -118,9 +116,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                               style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: selected
-                                    ? Colors.white
-                                    : const Color(0xFF6B7280),
+                                color: selected ? Colors.white : const Color(0xFF6B7280),
                               ),
                             ),
                           ),
@@ -143,15 +139,21 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       borderRadius: BorderRadius.circular(50),
                     ),
                   ),
-                  onPressed: _confirmBooking,
-                  child: const Text(
-                    'Xác nhận',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
+                  onPressed: _isSaving ? null : _onConfirmPressed,
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'Xác nhận',
+                          style:
+                              TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                        ),
                 ),
               ),
             ),
@@ -162,37 +164,70 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
   }
 
   Widget _buildCalendarCard() {
-    final days = List<int>.generate(35, (i) => i + 1);
+    final now = DateTime.now();
+    final firstAllowedMonth = DateTime(now.year, now.month);
+    final isAtFirstMonth =
+        _focusedMonth.year == firstAllowedMonth.year && _focusedMonth.month == firstAllowedMonth.month;
+
+    final firstDayOfMonth = DateTime(_focusedMonth.year, _focusedMonth.month, 1);
+    final daysInMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 0).day;
+    final weekdayOffset = (firstDayOfMonth.weekday % 7); // 0 = CN, 1 = T2, ...
+    final totalCells = ((weekdayOffset + daysInMonth + 6) ~/ 7) * 7;
+
+    final cells = List<int?>.generate(totalCells, (index) {
+      final dayNumber = index - weekdayOffset + 1;
+      if (dayNumber < 1 || dayNumber > daysInMonth) return null;
+      return dayNumber;
+    });
+
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(12),
         boxShadow: const [
-          BoxShadow(
-            color: Color(0x12000000),
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
+          BoxShadow(color: Color(0x12000000), blurRadius: 8, offset: Offset(0, 4)),
         ],
       ),
       child: Column(
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Tháng 3 2026',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
-                  color: Color(0xFF111928),
-                ),
+                'Tháng ${_focusedMonth.month} ${_focusedMonth.year}',
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Color(0xFF111928)),
               ),
               Row(
                 children: [
-                  Icon(Icons.chevron_left, size: 18, color: Color(0xFF6B7280)),
-                  Icon(Icons.chevron_right, size: 18, color: Color(0xFF6B7280)),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: isAtFirstMonth
+                        ? null
+                        : () {
+                      setState(() {
+                        _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month - 1, 1);
+                        _selectedDate = null;
+                      });
+                    },
+                    icon: Icon(
+                      Icons.chevron_left,
+                      size: 18,
+                      color: isAtFirstMonth ? const Color(0xFFCBD5E1) : const Color(0xFF6B7280),
+                    ),
+                  ),
+                  IconButton(
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {
+                      setState(() {
+                        _focusedMonth = DateTime(_focusedMonth.year, _focusedMonth.month + 1, 1);
+                        _selectedDate = null;
+                      });
+                    },
+                    icon: const Icon(Icons.chevron_right, size: 18, color: Color(0xFF6B7280)),
+                  ),
                 ],
               ),
             ],
@@ -201,20 +236,14 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
           const Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              Text('CN'),
-              Text('T2'),
-              Text('T3'),
-              Text('T4'),
-              Text('T5'),
-              Text('T6'),
-              Text('T7'),
+              Text('CN'), Text('T2'), Text('T3'), Text('T4'), Text('T5'), Text('T6'), Text('T7'),
             ],
           ),
           const SizedBox(height: 8),
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: days.length,
+            itemCount: cells.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
               mainAxisSpacing: 8,
@@ -222,33 +251,40 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
               childAspectRatio: 1,
             ),
             itemBuilder: (context, index) {
-              final day = days[index];
-              final visibleDay = day <= 31 ? day : day - 31;
-              final selected = visibleDay == _selectedDay && day <= 31;
-              final faded = day > 31;
+              final dayNumber = cells[index];
+              if (dayNumber == null) {
+                return const SizedBox.shrink();
+              }
+
+              final date = DateTime(_focusedMonth.year, _focusedMonth.month, dayNumber);
+              final isPast = date.isBefore(DateTime(now.year, now.month, now.day));
+              final selected = _selectedDate != null &&
+                  _selectedDate!.year == date.year &&
+                  _selectedDate!.month == date.month &&
+                  _selectedDate!.day == date.day;
               return InkWell(
                 borderRadius: BorderRadius.circular(8),
-                onTap: day <= 31
-                    ? () => setState(() => _selectedDay = visibleDay)
-                    : null,
+                onTap: isPast
+                    ? null
+                    : () {
+                  setState(() {
+                    _selectedDate = date;
+                  });
+                },
                 child: Container(
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                    color: selected
-                        ? const Color(0xFF1C2A3A)
-                        : Colors.transparent,
+                    color: selected ? const Color(0xFF1C2A3A) : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    '$visibleDay',
+                    '$dayNumber',
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: selected
                           ? Colors.white
-                          : (faded
-                                ? const Color(0xFFCBD5E1)
-                                : const Color(0xFF475569)),
+                          : (isPast ? const Color(0xFFCBD5E1) : const Color(0xFF475569)),
                     ),
                   ),
                 ),
@@ -260,50 +296,75 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     );
   }
 
-  Future<void> _confirmBooking() async {
-    final bookingDateTime = _selectedDateTime;
-    await AppointmentBookingStore.instance.addBooking(
-      doctor: widget.doctor,
-      dateTime: bookingDateTime,
+  Future<void> _onConfirmPressed() async {
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn ngày hẹn')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    final selectedDateTime = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _parseHour(_selectedTime),
+      _parseMinute(_selectedTime),
     );
-    await _showSuccessDialog(bookingDateTime);
+
+    try {
+      await AppointmentBookingStore.instance.addBooking(
+        doctor: widget.doctor,
+        dateTime: selectedDateTime,
+      );
+      if (!mounted) return;
+      _showSuccessDialog();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
   }
 
-  DateTime get _selectedDateTime {
-    final parts = _selectedTime.split(' ');
-    final clock = parts.first.split('.');
-    var hour = int.parse(clock[0]);
-    final minute = int.parse(clock[1]);
-    final meridiem = parts.last;
-    if (meridiem == 'PM' && hour < 12) {
+  int _parseHour(String timeLabel) {
+    final parts = timeLabel.split(' ');
+    if (parts.length != 2) return 0;
+    final time = parts[0];
+    final meridiem = parts[1];
+    final hm = time.split('.');
+    if (hm.length != 2) return 0;
+    var hour = int.tryParse(hm[0]) ?? 0;
+    if (meridiem.toUpperCase() == 'PM' && hour != 12) {
       hour += 12;
-    } else if (meridiem == 'AM' && hour == 12) {
+    } else if (meridiem.toUpperCase() == 'AM' && hour == 12) {
       hour = 0;
     }
-    return DateTime(2026, 3, _selectedDay, hour, minute);
+    return hour;
   }
 
-  String _formatClock(DateTime dateTime) {
-    final isPm = dateTime.hour >= 12;
-    var hour = dateTime.hour % 12;
-    if (hour == 0) {
-      hour = 12;
-    }
-    final hh = hour.toString().padLeft(2, '0');
-    final mm = dateTime.minute.toString().padLeft(2, '0');
-    return '$hh:$mm ${isPm ? 'PM' : 'AM'}';
+  int _parseMinute(String timeLabel) {
+    final parts = timeLabel.split(' ');
+    if (parts.length != 2) return 0;
+    final time = parts[0];
+    final hm = time.split('.');
+    if (hm.length != 2) return 0;
+    return int.tryParse(hm[1]) ?? 0;
   }
 
-  Future<void> _showSuccessDialog(DateTime bookingDateTime) {
-    return showDialog<void>(
+  void _showSuccessDialog() {
+    showDialog<void>(
       context: context,
       barrierDismissible: true,
       builder: (context) {
         return Dialog(
           insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(32),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
             child: Column(
@@ -321,21 +382,14 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                 const SizedBox(height: 16),
                 const Text(
                   'Hoàn tất!!',
-                  style: TextStyle(
-                    fontSize: 36,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF1F2A37),
-                  ),
+                  style: TextStyle(fontSize: 36, fontWeight: FontWeight.w700, color: Color(0xFF1F2A37)),
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Lịch hẹn của bạn với ${widget.doctor.name} đã được xác nhận vào lúc ${_formatClock(bookingDateTime)}, ngày ${bookingDateTime.day} tháng ${bookingDateTime.month} năm ${bookingDateTime.year}.',
+                  'Lịch hẹn của bạn với ${widget.doctor.name} đã được xác nhận vào lúc $_selectedTime'
+                      '${_selectedDate != null ? ', ngày ${_selectedDate!.day} tháng ${_selectedDate!.month} năm ${_selectedDate!.year}' : ''}.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.5,
-                    color: Color(0xFF6B7280),
-                  ),
+                  style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF6B7280)),
                 ),
                 const SizedBox(height: 16),
                 SizedBox(
@@ -344,32 +398,19 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF1F2A44),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(50),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                     ),
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(this.context).pushReplacement(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const ManageAppointmentsScreen(),
-                        ),
-                      );
-                    },
+                    onPressed: () => Navigator.of(context).pop(),
                     child: const Text(
-                      'Xem lịch hẹn',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.white,
-                      ),
+                      'Xong',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
                     ),
                   ),
                 ),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(),
                   child: const Text(
-                    'Đặt lịch khác',
+                    'Chỉnh sửa lịch hẹn',
                     style: TextStyle(color: Color(0xFF6B7280)),
                   ),
                 ),
