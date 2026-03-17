@@ -1,4 +1,5 @@
 import 'package:doctor_appointment_app/views/home/models/hospital_item.dart';
+import 'package:doctor_appointment_app/views/home/hospital_detail_screen.dart';
 import 'package:flutter/material.dart';
 
 class HospitalCard extends StatelessWidget {
@@ -15,7 +16,15 @@ class HospitalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return GestureDetector(
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => HospitalDetailScreen(hospital: item),
+            ),
+          );
+        },
+        child: Container(
       width: width,
       decoration: BoxDecoration(
         color: Colors.white,
@@ -186,6 +195,7 @@ class HospitalCard extends StatelessWidget {
           ),
         ],
       ),
+        )
     );
   }
 }

@@ -1,7 +1,7 @@
-import 'package:doctor_appointment_app/views/home/data/doctor_mock_data.dart';
+import 'package:flutter/material.dart';
+import 'package:doctor_appointment_app/implementations/repository/doctor_repository.dart';
 import 'package:doctor_appointment_app/views/home/doctor_detail_screen.dart';
 import 'package:doctor_appointment_app/views/home/models/doctor_item.dart';
-import 'package:flutter/material.dart';
 
 class DoctorListScreen extends StatefulWidget {
   const DoctorListScreen({super.key});
@@ -12,13 +12,16 @@ class DoctorListScreen extends StatefulWidget {
 
 class _DoctorListScreenState extends State<DoctorListScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final DoctorRepository _doctorRepo = DoctorRepository(); // Khởi tạo Repository
+
   String _selectedFilter = 'Tất cả';
 
   static const List<String> _filters = [
     'Tất cả',
-    'Da khoa',
+    'Đa khoa',
     'Tim mạch',
     'Nha khoa',
+    'Hô hấp',
   ];
 
   @override
@@ -27,20 +30,8 @@ class _DoctorListScreenState extends State<DoctorListScreen> {
     super.dispose();
   }
 
-  List<DoctorItem> get _filteredDoctors {
-    final query = _searchController.text.trim().toLowerCase();
-    return kDoctorMockData.where((doctor) {
-      final bool matchName = doctor.name.toLowerCase().contains(query);
-      final bool matchFilter = _selectedFilter == 'Tất cả' ||
-          doctor.specialty.toLowerCase().contains(_selectedFilter.toLowerCase());
-      return matchName && matchFilter;
-    }).toList();
-  }
-
   @override
   Widget build(BuildContext context) {
-    final doctors = _filteredDoctors;
-
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -48,6 +39,7 @@ class _DoctorListScreenState extends State<DoctorListScreen> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
           child: Column(
             children: [
+              // --- Header ---
               Row(
                 children: [
                   IconButton(
@@ -69,6 +61,8 @@ class _DoctorListScreenState extends State<DoctorListScreen> {
                 ],
               ),
               const SizedBox(height: 8),
+
+              // --- Thanh tìm kiếm ---
               Container(
                 height: 40,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -83,7 +77,10 @@ class _DoctorListScreenState extends State<DoctorListScreen> {
                     Expanded(
                       child: TextField(
                         controller: _searchController,
-                        onChanged: (_) => setState(() {}),
+                        onChanged: (value) {
+                          // Gọi setState để FutureBuilder chạy lại fetch data từ DB
+                          setState(() {});
+                        },
                         decoration: const InputDecoration(
                           border: InputBorder.none,
                           hintText: 'Tìm bác sĩ...',
@@ -95,10 +92,14 @@ class _DoctorListScreenState extends State<DoctorListScreen> {
                 ),
               ),
               const SizedBox(height: 12),
+
+              // --- Bộ lọc chuyên khoa (Chips) ---
               SizedBox(
                 height: 34,
                 child: ListView.separated(
                   scrollDirection: Axis.horizontal,
+                  itemCount: _filters.length,
+                  separatorBuilder: (context, index) => const SizedBox(width: 8),
                   itemBuilder: (context, index) {
                     final filter = _filters[index];
                     final selected = _selectedFilter == filter;
@@ -128,43 +129,73 @@ class _DoctorListScreenState extends State<DoctorListScreen> {
                       ),
                     );
                   },
-                  separatorBuilder: (context, index) => const SizedBox(width: 8),
-                  itemCount: _filters.length,
                 ),
               ),
               const SizedBox(height: 12),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    '${doctors.length} founds',
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      color: Color(0xFF1F2937),
-                    ),
-                  ),
-                  const Text(
-                    'Default',
-                    style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
+
+              // --- Danh sách Bác sĩ từ Database ---
               Expanded(
-                child: ListView.separated(
-                  itemCount: doctors.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 10),
-                  itemBuilder: (context, index) {
-                    return _DoctorCard(
-                      item: doctors[index],
-                      onTap: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute<void>(
-                            builder: (_) => DoctorDetailScreen(doctor: doctors[index]),
+                child: FutureBuilder<List<DoctorItem>>(
+                  // Sử dụng hàm search trong Repo để lọc theo text query
+                  future: _doctorRepo.searchDoctors(_searchController.text),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (snapshot.hasError) {
+                      return Center(child: Text('Lỗi: ${snapshot.error}'));
+                    }
+
+                    // Lấy list từ DB và lọc tiếp theo chuyên khoa trên UI
+                    final rawList = snapshot.data ?? [];
+                    final doctors = rawList.where((doc) {
+                      return _selectedFilter == 'Tất cả' ||
+                          doc.specialty.toLowerCase() == _selectedFilter.toLowerCase();
+                    }).toList();
+
+                    return Column(
+                      children: [
+                        // Kết quả tìm thấy
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '${doctors.length} kết quả',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1F2937),
+                              ),
+                            ),
+                            const Text(
+                              'Mặc định',
+                              style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+
+                        // Danh sách hiển thị
+                        Expanded(
+                          child: ListView.separated(
+                            itemCount: doctors.length,
+                            separatorBuilder: (context, index) => const SizedBox(height: 10),
+                            itemBuilder: (context, index) {
+                              return _DoctorCard(
+                                item: doctors[index],
+                                onTap: () {
+                                  Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => DoctorDetailScreen(doctor: doctors[index]),
+                                    ),
+                                  );
+                                },
+                              );
+                            },
                           ),
-                        );
-                      },
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -206,6 +237,7 @@ class _DoctorCard extends StatelessWidget {
         ),
         child: Row(
           children: [
+            // Ảnh bác sĩ
             ClipRRect(
               borderRadius: BorderRadius.circular(10),
               child: SizedBox(
@@ -213,20 +245,21 @@ class _DoctorCard extends StatelessWidget {
                 height: 74,
                 child: item.imageAssetPath == null
                     ? const ColoredBox(
-                        color: Color(0xFFE5E7EB),
-                        child: Icon(Icons.person, size: 34, color: Color(0xFF6B7280)),
-                      )
+                  color: Color(0xFFE5E7EB),
+                  child: Icon(Icons.person, size: 34, color: Color(0xFF6B7280)),
+                )
                     : Image.asset(
-                        item.imageAssetPath!,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => const ColoredBox(
-                          color: Color(0xFFE5E7EB),
-                          child: Icon(Icons.person, size: 34, color: Color(0xFF6B7280)),
-                        ),
-                      ),
+                  item.imageAssetPath!,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => const ColoredBox(
+                    color: Color(0xFFE5E7EB),
+                    child: Icon(Icons.person, size: 34, color: Color(0xFF6B7280)),
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 10),
+            // Thông tin bác sĩ
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -237,21 +270,25 @@ class _DoctorCard extends StatelessWidget {
                         child: Text(
                           item.name,
                           style: const TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.w700,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                             color: Color(0xFF1F2937),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      const Icon(Icons.favorite_border, size: 18, color: Color(0xFF4B5563)),
+                      Icon(
+                        item.isFavorite ? Icons.favorite : Icons.favorite_border,
+                        size: 18,
+                        color: item.isFavorite ? Colors.red : const Color(0xFF4B5563),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 4),
                   Text(
                     item.specialty,
-                    style: const TextStyle(fontSize: 17, color: Color(0xFF374151)),
+                    style: const TextStyle(fontSize: 15, color: Color(0xFF374151), fontWeight: FontWeight.w500),
                   ),
                   const SizedBox(height: 2),
                   Row(
@@ -261,7 +298,7 @@ class _DoctorCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           item.hospitalName,
-                          style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                          style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -274,8 +311,8 @@ class _DoctorCard extends StatelessWidget {
                       const Icon(Icons.star, size: 14, color: Color(0xFFF59E0B)),
                       const SizedBox(width: 4),
                       Text(
-                        '${item.rating.toStringAsFixed(1)} , ${item.reviewCount} Đánh giá',
-                        style: const TextStyle(fontSize: 13, color: Color(0xFF6B7280)),
+                        '${item.rating.toStringAsFixed(1)} | ${item.reviewCount} Đánh giá',
+                        style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
                       ),
                     ],
                   ),

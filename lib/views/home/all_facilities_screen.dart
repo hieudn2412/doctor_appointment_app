@@ -1,6 +1,10 @@
+import 'package:doctor_appointment_app/implementations/repository/hospital_repository.dart';
+import 'package:doctor_appointment_app/views/appointment/manage_appointments_screen.dart';
 import 'package:doctor_appointment_app/views/home/data/hospital_mock_data.dart';
+import 'package:doctor_appointment_app/views/home/models/hospital_item.dart';
 import 'package:doctor_appointment_app/views/home/widgets/home_bottom_menu_bar.dart';
 import 'package:doctor_appointment_app/views/home/widgets/hospital_card.dart';
+import 'package:doctor_appointment_app/views/profile/profile_screen.dart';
 import 'package:flutter/material.dart';
 
 class AllFacilitiesScreen extends StatelessWidget {
@@ -8,6 +12,8 @@ class AllFacilitiesScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hospitalRepo = HospitalRepository();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
       body: SafeArea(
@@ -100,27 +106,57 @@ class AllFacilitiesScreen extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 18),
-                child: GridView.builder(
-                  itemCount: kHospitalMockData.length * 2,
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 2,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    childAspectRatio: 0.68,
-                  ),
-                  itemBuilder: (context, index) {
-                    final item = kHospitalMockData[index % kHospitalMockData.length];
-                    return HospitalCard(
-                      item: item,
-                      showRating: false,
-                    );
-                  },
-                ),
+              child: FutureBuilder<List<HospitalItem>>(
+                future: hospitalRepo.getAllHospitals(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return const Center(child: Text("Không có dữ liệu"));
+                  }
+
+                  final hospitals = snapshot.data!;
+
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 18),
+                    child: GridView.builder(
+                      itemCount: hospitals.length,
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 2,
+                        mainAxisSpacing: 10,
+                        crossAxisSpacing: 10,
+                        childAspectRatio: 0.68,
+                      ),
+                      itemBuilder: (context, index) {
+                        return HospitalCard(
+                          item: hospitals[index],
+                          showRating: false,
+                        );
+                      },
+                    ),
+                  );
+                },
               ),
             ),
-            const HomeBottomMenuBar(),
+            HomeBottomMenuBar(
+              selectedTab: HomeMenuTab.home,
+              onCalendarTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ManageAppointmentsScreen(),
+                  ),
+                );
+              },
+              onProfileTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const ProfileScreen(),
+                  ),
+                );
+              },
+            ),
           ],
         ),
       ),
