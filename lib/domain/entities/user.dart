@@ -1,5 +1,6 @@
 /// Entity representing a user in the application.
-class User {
+class
+User {
   final int? id;
   final String name;
   final String email;

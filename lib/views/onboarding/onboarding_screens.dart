@@ -1,5 +1,4 @@
-import 'package:doctor_appointment_app/views/home/home_screen.dart';
-import 'package:doctor_appointment_app/views/user/signup_screen.dart';
+import 'package:doctor_appointment_app/views/user/signin_screen.dart';
 import 'package:flutter/material.dart';
 
 class OnboardingFirstScreen extends StatelessWidget {
@@ -20,7 +19,7 @@ class OnboardingFirstScreen extends StatelessWidget {
       },
       onSkip: () {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
+          MaterialPageRoute<void>(builder: (_) => const SignInScreen()),
           (route) => false,
         );
       },
@@ -46,7 +45,7 @@ class OnboardingSecondScreen extends StatelessWidget {
       },
       onSkip: () {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
+          MaterialPageRoute<void>(builder: (_) => const SignInScreen()),
           (route) => false,
         );
       },
@@ -66,13 +65,13 @@ class OnboardingThirdScreen extends StatelessWidget {
       actionText: 'Bắt đầu',
       onNext: () {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (_) => const SignUpScreen()),
+          MaterialPageRoute<void>(builder: (_) => const SignInScreen()),
           (route) => false,
         );
       },
       onSkip: () {
         Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute<void>(builder: (_) => const SignUpScreen()),
+          MaterialPageRoute<void>(builder: (_) => const SignInScreen()),
           (route) => false,
         );
       },
