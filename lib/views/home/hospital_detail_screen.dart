@@ -1,3 +1,4 @@
+import 'package:doctor_appointment_app/views/home/doctor_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:doctor_appointment_app/views/home/models/hospital_item.dart';
 import 'package:doctor_appointment_app/views/home/models/specialty.dart';
@@ -189,6 +190,13 @@ class HospitalDetailScreen extends StatelessWidget {
             // --- MENU BAR PHÍA DƯỚI ---
             HomeBottomMenuBar(
               selectedTab: HomeMenuTab.home,
+              onSearchTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const DoctorListScreen(),
+                  ),
+                );
+              },
               onCalendarTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(

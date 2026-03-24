@@ -1,4 +1,5 @@
 import 'package:doctor_appointment_app/views/appointment/manage_appointments_screen.dart';
+import 'package:doctor_appointment_app/views/home/doctor_list_screen.dart';
 import 'package:doctor_appointment_app/views/home/widgets/home_bottom_menu_bar.dart';
 import 'package:flutter/material.dart';
 
@@ -78,6 +79,13 @@ class ProfileScreen extends StatelessWidget {
             HomeBottomMenuBar(
               selectedTab: HomeMenuTab.profile,
               onHomeTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
+              onSearchTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const DoctorListScreen(),
+                  ),
+                );
+              },
               onCalendarTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
