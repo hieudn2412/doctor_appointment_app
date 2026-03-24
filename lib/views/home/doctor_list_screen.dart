@@ -1,3 +1,7 @@
+import 'package:doctor_appointment_app/views/appointment/manage_appointments_screen.dart';
+import 'package:doctor_appointment_app/views/home/home_screen.dart';
+import 'package:doctor_appointment_app/views/home/widgets/home_bottom_menu_bar.dart';
+import 'package:doctor_appointment_app/views/profile/profile_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:doctor_appointment_app/implementations/repository/doctor_repository.dart';
 import 'package:doctor_appointment_app/views/home/doctor_detail_screen.dart';
@@ -42,10 +46,10 @@ class _DoctorListScreenState extends State<DoctorListScreen> {
               // --- Header ---
               Row(
                 children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back, color: Color(0xFF4B5563)),
-                  ),
+                  // IconButton(
+                  //   onPressed: () => Navigator.of(context).pop(),
+                  //   icon: const Icon(Icons.arrow_back, color: Color(0xFF4B5563)),
+                  // ),
                   const Expanded(
                     child: Text(
                       'Danh sách bác sĩ',
@@ -57,7 +61,7 @@ class _DoctorListScreenState extends State<DoctorListScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 48),
+                  const SizedBox(width: 10),
                 ],
               ),
               const SizedBox(height: 8),
@@ -199,6 +203,30 @@ class _DoctorListScreenState extends State<DoctorListScreen> {
                     );
                   },
                 ),
+              ),
+              HomeBottomMenuBar(
+                selectedTab: HomeMenuTab.search, // Đánh dấu tab search là active
+                onHomeTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const HomeScreen(),
+                    ),
+                  );
+                },
+                onCalendarTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ManageAppointmentsScreen(),
+                    ),
+                  );
+                },
+                onProfileTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const ProfileScreen(),
+                    ),
+                  );
+                },
               ),
             ],
           ),

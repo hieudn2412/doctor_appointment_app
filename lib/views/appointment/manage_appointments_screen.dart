@@ -2,6 +2,8 @@ import 'package:doctor_appointment_app/views/appointment/data/appointment_bookin
 import 'package:doctor_appointment_app/views/appointment/models/appointment_booking.dart';
 import 'package:doctor_appointment_app/views/appointment/reschedule_appointment_screen.dart';
 import 'package:doctor_appointment_app/views/appointment/write_review_screen.dart';
+import 'package:doctor_appointment_app/views/home/doctor_list_screen.dart';
+import 'package:doctor_appointment_app/views/home/home_screen.dart';
 import 'package:doctor_appointment_app/views/home/widgets/home_bottom_menu_bar.dart';
 import 'package:doctor_appointment_app/views/profile/profile_screen.dart';
 import 'package:flutter/material.dart';
@@ -102,7 +104,20 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
             ),
             HomeBottomMenuBar(
               selectedTab: HomeMenuTab.calendar,
-              onHomeTap: () => Navigator.of(context).pop(),
+              onHomeTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const HomeScreen(),
+                  ),
+                );
+              },
+              onSearchTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const DoctorListScreen(),
+                  ),
+                );
+              },
               onProfileTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(

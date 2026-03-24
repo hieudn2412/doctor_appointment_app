@@ -1,6 +1,7 @@
 import 'package:doctor_appointment_app/implementations/repository/hospital_repository.dart';
 import 'package:doctor_appointment_app/views/appointment/manage_appointments_screen.dart';
 import 'package:doctor_appointment_app/views/home/data/hospital_mock_data.dart';
+import 'package:doctor_appointment_app/views/home/doctor_list_screen.dart';
 import 'package:doctor_appointment_app/views/home/models/hospital_item.dart';
 import 'package:doctor_appointment_app/views/home/widgets/home_bottom_menu_bar.dart';
 import 'package:doctor_appointment_app/views/home/widgets/hospital_card.dart';
@@ -142,6 +143,13 @@ class AllFacilitiesScreen extends StatelessWidget {
             ),
             HomeBottomMenuBar(
               selectedTab: HomeMenuTab.home,
+              onSearchTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const DoctorListScreen(),
+                  ),
+                );
+              },
               onCalendarTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(

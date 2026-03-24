@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 
-enum HomeMenuTab { home, calendar, profile }
+enum HomeMenuTab { home, search, calendar, profile }
 
 class HomeBottomMenuBar extends StatelessWidget {
   const HomeBottomMenuBar({
     super.key,
     this.selectedTab = HomeMenuTab.home,
     this.onHomeTap,
+    this.onSearchTap,
     this.onCalendarTap,
     this.onProfileTap,
   });
 
   final HomeMenuTab selectedTab;
   final VoidCallback? onHomeTap;
+  final VoidCallback? onSearchTap;
   final VoidCallback? onCalendarTap;
   final VoidCallback? onProfileTap;
 
@@ -32,6 +34,11 @@ class HomeBottomMenuBar extends StatelessWidget {
             icon: Icons.home,
             active: selectedTab == HomeMenuTab.home,
             onTap: onHomeTap,
+          ),
+          _MenuIcon(
+            icon: Icons.search_outlined,
+            active: selectedTab == HomeMenuTab.search,
+            onTap: onSearchTap,
           ),
           _MenuIcon(
             icon: Icons.calendar_month_outlined,

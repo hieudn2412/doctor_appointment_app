@@ -45,6 +45,13 @@ class HomeScreen extends StatelessWidget {
             ),
             HomeBottomMenuBar(
               selectedTab: HomeMenuTab.home,
+              onSearchTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const DoctorListScreen(),
+                  ),
+                );
+              },
               onCalendarTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
