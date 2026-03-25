@@ -1,3 +1,4 @@
+import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
 import 'package:doctor_appointment_app/implementations/repository/hospital_repository.dart';
 import 'package:doctor_appointment_app/views/appointment/manage_appointments_screen.dart';
 import 'package:doctor_appointment_app/views/home/data/hospital_mock_data.dart';
@@ -14,6 +15,10 @@ class AllFacilitiesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hospitalRepo = HospitalRepository();
+    final currentUserLocation =
+    SessionManager.instance.currentUser?.address?.trim().isNotEmpty == true
+        ? SessionManager.instance.currentUser!.address!
+        : 'Không xác định';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
@@ -27,7 +32,7 @@ class AllFacilitiesScreen extends StatelessWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Column(
+                      Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
@@ -40,7 +45,7 @@ class AllFacilitiesScreen extends StatelessWidget {
                               Icon(Icons.location_on, size: 18, color: Color(0xFF1C2A3A)),
                               SizedBox(width: 7),
                               Text(
-                                'Quận Nam Từ Liêm, Hà Nội',
+                                '${currentUserLocation}',
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,

@@ -1,3 +1,4 @@
+import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
 import 'package:flutter/material.dart';
 import 'package:doctor_appointment_app/views/home/widgets/home_banner.dart';
 import 'package:doctor_appointment_app/views/home/widgets/recent_facilities_section.dart';
@@ -16,13 +17,17 @@ class HomeContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final currentUserLocation =
+    SessionManager.instance.currentUser?.address?.trim().isNotEmpty == true
+        ? SessionManager.instance.currentUser!.address!
+        : 'Không xác định';
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(24, 8, 0, 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _Header(onNotificationTap: onNotificationTap),
+            _Header(onNotificationTap: onNotificationTap, location: currentUserLocation),
             const SizedBox(height: 14),
             _SearchBar(onTap: onSearchTap),
             const SizedBox(height: 14),
@@ -40,9 +45,10 @@ class HomeContent extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.onNotificationTap});
+  const _Header({required this.onNotificationTap, required this.location,});
 
   final VoidCallback onNotificationTap;
+  final String location;
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +58,7 @@ class _Header extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          const Column(
+          Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -65,7 +71,7 @@ class _Header extends StatelessWidget {
                   Icon(Icons.location_on, size: 18, color: Color(0xFF1C2A3A)),
                   SizedBox(width: 7),
                   Text(
-                    'Quận Nam Từ Liêm, Hà Nội',
+                    location,
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
