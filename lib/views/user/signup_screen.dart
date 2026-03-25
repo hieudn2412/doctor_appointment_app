@@ -17,11 +17,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   
   // Sử dụng AuthViewModel (Singleton đã được cập nhật)
   final _authViewModel = AuthViewModel();
 
   bool _obscurePassword = true;
+  bool _obscureConfirmPassword = true;
   bool _isLoading = false;
   bool _agreedToTerms = false;
 
@@ -30,11 +32,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
     _nameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
   Future<void> _onSignUp() async {
-    // 1. Kiểm tra validation form
+    // 1. Kiểm tra validation form (bao gồm confirm password)
     if (!_formKey.currentState!.validate()) return;
 
     // 2. Kiểm tra điều khoản
@@ -145,6 +148,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 const SizedBox(height: 20),
                 // ── Password ──
                 _buildPasswordField(),
+                const SizedBox(height: 20),
+                // ── Confirm Password ──
+                _buildConfirmPasswordField(),
                 const SizedBox(height: 16),
                 // ── Terms checkbox ──
                 _buildTermsCheckbox(),
@@ -254,7 +260,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     return TextFormField(
       controller: _passwordController,
       obscureText: _obscurePassword,
-      textInputAction: TextInputAction.done,
+      textInputAction: TextInputAction.next,
       validator: _authViewModel.validatePassword,
       decoration: _inputDecoration(
         hint: 'Mật khẩu',
@@ -266,6 +272,31 @@ class _SignUpScreenState extends State<SignUpScreen> {
             color: const Color(0xFF9CA3AF),
           ),
           onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildConfirmPasswordField() {
+    return TextFormField(
+      controller: _confirmPasswordController,
+      obscureText: _obscureConfirmPassword,
+      textInputAction: TextInputAction.done,
+      validator: (value) => _authViewModel.validateConfirmPassword(
+        value,
+        _passwordController.text,
+      ),
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      decoration: _inputDecoration(
+        hint: 'Nhập lại mật khẩu',
+        icon: Icons.lock_outline,
+        suffixIcon: IconButton(
+          icon: Icon(
+            _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            size: 18,
+            color: const Color(0xFF9CA3AF),
+          ),
+          onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
         ),
       ),
     );

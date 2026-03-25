@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
+import 'package:doctor_appointment_app/views/home/home_screen.dart';
 import 'package:doctor_appointment_app/views/onboarding/onboarding_screens.dart';
 import 'package:flutter/material.dart';
 
@@ -17,14 +19,32 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _timer = Timer(const Duration(seconds: 2), () {
-      if (!mounted) return;
+    _timer = Timer(const Duration(seconds: 2), _checkSessionAndNavigate);
+  }
+
+  /// Kiểm tra session: nếu đã đăng nhập → vào HomeScreen, ngược lại → Onboarding.
+  Future<void> _checkSessionAndNavigate() async {
+    if (!mounted) return;
+
+    final hasSession = await SessionManager.instance.restoreSession();
+
+    if (!mounted) return;
+
+    if (hasSession) {
+      // Đã có session → vào thẳng trang chủ
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => const HomeScreen(),
+        ),
+      );
+    } else {
+      // Chưa đăng nhập → màn hình onboarding
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
           builder: (_) => const OnboardingFirstScreen(),
         ),
       );
-    });
+    }
   }
 
   @override

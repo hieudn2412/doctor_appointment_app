@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'dart:convert';
 import 'package:doctor_appointment_app/data/implementations/local/database_helper.dart';
+import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
 import 'package:doctor_appointment_app/domain/entities/user.dart';
 import 'package:flutter/material.dart';
 
@@ -11,14 +12,16 @@ class AuthViewModel extends ChangeNotifier {
   AuthViewModel._internal();
 
   final DatabaseHelper _db = DatabaseHelper.instance;
+  final SessionManager _session = SessionManager.instance;
 
   bool _isLoading = false;
   String? _errorMessage;
-  User? _currentUser;
 
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
-  User? get currentUser => _currentUser;
+
+  /// User hiện tại — lấy từ SessionManager để đồng bộ toàn app.
+  User? get currentUser => _session.currentUser;
 
   // ── Password Hashing ─────────────────────────────────────────────────
 
@@ -27,7 +30,7 @@ class AuthViewModel extends ChangeNotifier {
     return sha256.convert(bytes).toString();
   }
 
-  // FIX 1: Dùng Random.secure() cho OTP bảo mật
+  // Dùng Random.secure() cho OTP bảo mật
   String _generateOtp() {
     final random = Random.secure();
     return List.generate(5, (_) => random.nextInt(10)).join();
@@ -68,7 +71,6 @@ class AuthViewModel extends ChangeNotifier {
 
   Future<bool> signIn({required String email, required String password}) async {
     _setLoading(true);
-    // FIX 6: Clear error ở đầu mỗi action
     _errorMessage = null;
     try {
       final hashedPassword = _hashPassword(password);
@@ -83,7 +85,8 @@ class AuthViewModel extends ChangeNotifier {
         return false;
       }
 
-      _currentUser = user;
+      // ✅ Lưu session khi đăng nhập thành công
+      await _session.saveSession(user);
       _setLoading(false);
       return true;
     } catch (e) {
@@ -118,8 +121,13 @@ class AuthViewModel extends ChangeNotifier {
 
       await _db.insertUser(user);
 
-      // FIX 3: Lấy lại user từ DB để có đầy đủ thông tin (id, createdAt chính xác)
-      _currentUser = await _db.getUserByEmail(normalizedEmail);
+      // Lấy lại user từ DB để có đầy đủ thông tin (id, createdAt chính xác)
+      final savedUser = await _db.getUserByEmail(normalizedEmail);
+      if (savedUser != null) {
+        // ✅ Lưu session khi đăng ký thành công
+        await _session.saveSession(savedUser);
+      }
+
       _setLoading(false);
       return true;
     } catch (e) {
@@ -154,8 +162,12 @@ class AuthViewModel extends ChangeNotifier {
         gender: gender,
       );
 
-      // FIX: Luôn refresh currentUser sau update, không phụ thuộc rows > 0
-      _currentUser = await _db.getUserByEmail(email);
+      // Refresh session sau khi cập nhật profile
+      final updatedUser = await _db.getUserByEmail(email);
+      if (updatedUser != null) {
+        await _session.updateSession(updatedUser);
+      }
+
       _setLoading(false);
       return true;
     } catch (e) {
@@ -178,7 +190,7 @@ class AuthViewModel extends ChangeNotifier {
       }
       final otp = _generateOtp();
       await _db.updateResetCode(normalizedEmail, otp);
-      // FIX 2: Chỉ print trong debug mode. Thực tế cần tích hợp email service.
+      // Chỉ print trong debug mode. Thực tế cần tích hợp email service.
       debugPrint('⚠️ [DEV ONLY] OTP cho $normalizedEmail: $otp');
       _setLoading(false);
       return true;
@@ -224,7 +236,7 @@ class AuthViewModel extends ChangeNotifier {
     try {
       final normalizedEmail = email.trim().toLowerCase();
 
-      // FIX 5: Kiểm tra resetCode phải tồn tại (đã qua verifyOtp) mới cho đổi mật khẩu
+      // Kiểm tra resetCode phải tồn tại (đã qua verifyOtp) mới cho đổi mật khẩu
       final user = await _db.getUserByEmail(normalizedEmail);
       if (user == null || user.resetCode == null) {
         _errorMessage = 'Phiên xác minh không hợp lệ. Vui lòng thực hiện lại từ đầu.';
@@ -248,8 +260,9 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void logout() {
-    _currentUser = null;
+  /// Đăng xuất: xóa session và clear state.
+  Future<void> logout() async {
+    await _session.clearSession();
     notifyListeners();
   }
 }

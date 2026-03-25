@@ -1,6 +1,9 @@
+import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
+import 'package:doctor_appointment_app/viewmodels/login/auth_viewmodel.dart';
 import 'package:doctor_appointment_app/views/appointment/manage_appointments_screen.dart';
 import 'package:doctor_appointment_app/views/home/doctor_list_screen.dart';
 import 'package:doctor_appointment_app/views/home/widgets/home_bottom_menu_bar.dart';
+import 'package:doctor_appointment_app/views/user/signin_screen.dart';
 import 'package:flutter/material.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -155,7 +158,15 @@ class ProfileScreen extends StatelessWidget {
                     child: _ModalActionButton(
                       text: 'Đăng xuất',
                       isPrimary: true,
-                      onTap: () => Navigator.of(context).pop(),
+                      onTap: () async {
+                        // Xóa session và đăng xuất
+                        await AuthViewModel().logout();
+                        if (!context.mounted) return;
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute<void>(builder: (_) => const SignInScreen()),
+                          (route) => false,
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -171,6 +182,9 @@ class ProfileScreen extends StatelessWidget {
 class _ProfileHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    final user = SessionManager.instance.currentUser;
+    final displayName = user?.name ?? 'Người dùng';
+    final displayPhone = user?.phone ?? '';
     return Column(
       children: [
         Stack(
@@ -206,17 +220,17 @@ class _ProfileHeader extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        const Text(
-          'Hà Lê Iset',
-          style: TextStyle(
+        Text(
+          displayName,
+          style: const TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
             color: Color(0xFF1F2A37),
           ),
         ),
-        const Text(
-          '+123 856479683',
-          style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+        Text(
+          displayPhone,
+          style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
         ),
       ],
     );
