@@ -1,14 +1,17 @@
+import 'package:doctor_appointment_app/views/appointment/data/appointment_booking_store.dart';
 import 'package:flutter/material.dart';
 
 class RescheduleAppointmentScreen extends StatefulWidget {
   const RescheduleAppointmentScreen({
     super.key,
+    required this.bookingId,
     required this.doctorName,
     required this.specialty,
     required this.hospital,
     required this.imagePath,
   });
 
+  final String bookingId;
   final String doctorName;
   final String specialty;
   final String hospital;
@@ -21,7 +24,8 @@ class RescheduleAppointmentScreen extends StatefulWidget {
 class _RescheduleAppointmentScreenState extends State<RescheduleAppointmentScreen> {
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime? _selectedDate;
-  String _selectedTime = '10.00 AM';
+  String? _selectedTime;
+  bool _isSaving = false;
 
   static const List<String> _timeSlots = [
     '09.00 AM',
@@ -157,11 +161,20 @@ class _RescheduleAppointmentScreenState extends State<RescheduleAppointmentScree
                     backgroundColor: const Color(0xFF1C2A3A),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                   ),
-                  onPressed: _showSuccessDialog,
-                  child: const Text(
-                    'Xác nhận',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
-                  ),
+                  onPressed: _isSaving ? null : _onConfirmPressed,
+                  child: _isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          'Xác nhận',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
+                        ),
                 ),
               ),
             ),
@@ -169,6 +182,80 @@ class _RescheduleAppointmentScreenState extends State<RescheduleAppointmentScree
         ),
       ),
     );
+  }
+
+  Future<void> _onConfirmPressed() async {
+    if (_selectedDate == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn ngày hẹn')),
+      );
+      return;
+    }
+
+    if (_selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn giờ hẹn')),
+      );
+      return;
+    }
+
+    setState(() {
+      _isSaving = true;
+    });
+
+    final selectedDateTime = DateTime(
+      _selectedDate!.year,
+      _selectedDate!.month,
+      _selectedDate!.day,
+      _parseHour(_selectedTime!),
+      _parseMinute(_selectedTime!),
+    );
+
+    try {
+      await AppointmentBookingStore.instance.rescheduleBooking(
+        widget.bookingId,
+        selectedDateTime,
+      );
+      if (!mounted) return;
+      _showSuccessDialog();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Lỗi: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
+    }
+  }
+
+  int _parseHour(String timeLabel) {
+    final parts = timeLabel.split(' ');
+    if (parts.length != 2) return 0;
+    final time = parts[0];
+    final meridiem = parts[1];
+    final hm = time.split('.');
+    if (hm.length != 2) return 0;
+    var hour = int.tryParse(hm[0]) ?? 0;
+    if (meridiem.toUpperCase() == 'PM' && hour != 12) {
+      hour += 12;
+    } else if (meridiem.toUpperCase() == 'AM' && hour == 12) {
+      hour = 0;
+    }
+    return hour;
+  }
+
+  int _parseMinute(String timeLabel) {
+    final parts = timeLabel.split(' ');
+    if (parts.length != 2) return 0;
+    final time = parts[0];
+    final hm = time.split('.');
+    if (hm.length != 2) return 0;
+    return int.tryParse(hm[1]) ?? 0;
   }
 
   void _showSuccessDialog() {
@@ -214,7 +301,10 @@ class _RescheduleAppointmentScreenState extends State<RescheduleAppointmentScree
                       backgroundColor: const Color(0xFF1F2A44),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                     ),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Close dialog
+                      Navigator.of(context).pop(); // Go back to manage screen
+                    },
                     child: const Text(
                       'Xong',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
@@ -459,4 +549,3 @@ class _CalendarCard extends StatelessWidget {
     );
   }
 }
-

@@ -3,6 +3,7 @@ enum AppointmentStatus { upcoming, completed }
 class AppointmentBooking {
   const AppointmentBooking({
     required this.id,
+    required this.doctorId, // Thêm ID bác sĩ
     required this.doctorName,
     required this.specialty,
     required this.hospital,
@@ -12,6 +13,7 @@ class AppointmentBooking {
   });
 
   final String id;
+  final String doctorId;
   final String doctorName;
   final String specialty;
   final String hospital;
@@ -21,6 +23,7 @@ class AppointmentBooking {
 
   AppointmentBooking copyWith({
     String? id,
+    String? doctorId,
     String? doctorName,
     String? specialty,
     String? hospital,
@@ -30,6 +33,7 @@ class AppointmentBooking {
   }) {
     return AppointmentBooking(
       id: id ?? this.id,
+      doctorId: doctorId ?? this.doctorId,
       doctorName: doctorName ?? this.doctorName,
       specialty: specialty ?? this.specialty,
       hospital: hospital ?? this.hospital,
@@ -42,6 +46,7 @@ class AppointmentBooking {
   Map<String, Object?> toMap() {
     return <String, Object?>{
       'id': id,
+      'doctor_id': doctorId,
       'doctor_name': doctorName,
       'specialty': specialty,
       'hospital': hospital,
@@ -54,6 +59,7 @@ class AppointmentBooking {
   static AppointmentBooking fromMap(Map<String, Object?> map) {
     return AppointmentBooking(
       id: map['id'] as String,
+      doctorId: (map['doctor_id'] as String?) ?? 'unknown',
       doctorName: map['doctor_name'] as String,
       specialty: map['specialty'] as String,
       hospital: map['hospital'] as String,

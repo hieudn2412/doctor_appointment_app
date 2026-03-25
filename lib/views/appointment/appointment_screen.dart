@@ -17,8 +17,9 @@ class AppointmentScreen extends StatefulWidget {
 class _AppointmentScreenState extends State<AppointmentScreen> {
   DateTime _focusedMonth = DateTime(DateTime.now().year, DateTime.now().month, 1);
   DateTime? _selectedDate;
-  String _selectedTime = '10.00 AM';
+  String? _selectedTime;
   bool _isSaving = false;
+  String? _bookingId;
 
   static const List<String> _timeSlots = [
     '09.00 AM',
@@ -304,6 +305,13 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       return;
     }
 
+    if (_selectedTime == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng chọn giờ hẹn')),
+      );
+      return;
+    }
+
     setState(() {
       _isSaving = true;
     });
@@ -312,17 +320,25 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       _selectedDate!.year,
       _selectedDate!.month,
       _selectedDate!.day,
-      _parseHour(_selectedTime),
-      _parseMinute(_selectedTime),
+      _parseHour(_selectedTime!),
+      _parseMinute(_selectedTime!),
     );
 
     try {
-      await AppointmentBookingStore.instance.addBooking(
-        doctor: widget.doctor,
-        dateTime: selectedDateTime,
-      );
+      final isUpdate = _bookingId != null;
+      if (!isUpdate) {
+        _bookingId = await AppointmentBookingStore.instance.addBooking(
+          doctor: widget.doctor,
+          dateTime: selectedDateTime,
+        );
+      } else {
+        await AppointmentBookingStore.instance.rescheduleBooking(
+          _bookingId!,
+          selectedDateTime,
+        );
+      }
       if (!mounted) return;
-      _showSuccessDialog();
+      _showSuccessDialog(isUpdate: isUpdate);
     } finally {
       if (mounted) {
         setState(() {
@@ -357,10 +373,10 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
     return int.tryParse(hm[1]) ?? 0;
   }
 
-  void _showSuccessDialog() {
+  void _showSuccessDialog({bool isUpdate = false}) {
     showDialog<void>(
       context: context,
-      barrierDismissible: true,
+      barrierDismissible: false, // Ngăn người dùng tắt dialog bằng cách nhấn ra ngoài
       builder: (context) {
         return Dialog(
           insetPadding: const EdgeInsets.symmetric(horizontal: 24),
@@ -386,8 +402,11 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Lịch hẹn của bạn với ${widget.doctor.name} đã được xác nhận vào lúc $_selectedTime'
-                      '${_selectedDate != null ? ', ngày ${_selectedDate!.day} tháng ${_selectedDate!.month} năm ${_selectedDate!.year}' : ''}.',
+                  isUpdate
+                      ? 'Lịch hẹn của bạn với ${widget.doctor.name} đã được cập nhật vào lúc $_selectedTime'
+                          '${_selectedDate != null ? ', ngày ${_selectedDate!.day} tháng ${_selectedDate!.month} năm ${_selectedDate!.year}' : ''}.'
+                      : 'Lịch hẹn của bạn với ${widget.doctor.name} đã được xác nhận vào lúc $_selectedTime'
+                          '${_selectedDate != null ? ', ngày ${_selectedDate!.day} tháng ${_selectedDate!.month} năm ${_selectedDate!.year}' : ''}.',
                   textAlign: TextAlign.center,
                   style: const TextStyle(fontSize: 14, height: 1.5, color: Color(0xFF6B7280)),
                 ),
@@ -400,7 +419,10 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                       backgroundColor: const Color(0xFF1F2A44),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(50)),
                     ),
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Đóng Dialog
+                      Navigator.of(context).pop(); // Quay lại trang trước đó
+                    },
                     child: const Text(
                       'Xong',
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
@@ -408,7 +430,7 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
                   ),
                 ),
                 TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () => Navigator.of(context).pop(), // Chỉ đóng dialog để chỉnh sửa tiếp
                   child: const Text(
                     'Chỉnh sửa lịch hẹn',
                     style: TextStyle(color: Color(0xFF6B7280)),

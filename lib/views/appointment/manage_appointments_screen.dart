@@ -92,9 +92,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
                     onRescheduleTap: _openReschedule,
                   ),
                   _ScheduleTabView(
-                    nextBooking: _store.upcomingBookings.isNotEmpty
-                        ? _store.upcomingBookings.first
-                        : null,
+                    bookings: _store.upcomingBookings,
                     onCancelTap: _showCancelModal,
                     onWriteReviewTap: _openWriteReview,
                     onRescheduleTap: _openReschedule,
@@ -132,7 +130,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
     );
   }
 
-  void _showCancelModal() {
+  void _showCancelModal(String bookingId) {
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -201,7 +199,10 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
                   Expanded(
                     child: InkWell(
                       borderRadius: BorderRadius.circular(50),
-                      onTap: () => Navigator.of(context).pop(),
+                      onTap: () async {
+                        await _store.cancelBooking(bookingId);
+                        if (mounted) Navigator.of(context).pop();
+                      },
                       child: Container(
                         height: 41,
                         alignment: Alignment.center,
@@ -233,6 +234,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => WriteReviewScreen(
+          doctorId: booking.doctorId, // Đã thêm doctorId
           doctorName: booking.doctorName,
           specialty: booking.specialty,
           hospital: booking.hospital,
@@ -246,6 +248,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => RescheduleAppointmentScreen(
+          bookingId: booking.id,
           doctorName: booking.doctorName,
           specialty: booking.specialty,
           hospital: booking.hospital,
@@ -269,7 +272,7 @@ class _AppointmentList extends StatelessWidget {
 
   final _AppointmentTabType tabType;
   final List<AppointmentBooking> bookings;
-  final VoidCallback onCancelTap;
+  final ValueChanged<String> onCancelTap;
   final ValueChanged<AppointmentBooking> onWriteReviewTap;
   final ValueChanged<AppointmentBooking> onRescheduleTap;
 
@@ -300,7 +303,6 @@ class _AppointmentList extends StatelessWidget {
           ),
           const SizedBox(height: 10),
         ],
-        if (tabType == _AppointmentTabType.schedule) const _MiniCalendarCard(),
       ],
     );
   }
@@ -308,20 +310,20 @@ class _AppointmentList extends StatelessWidget {
 
 class _ScheduleTabView extends StatelessWidget {
   const _ScheduleTabView({
-    required this.nextBooking,
+    required this.bookings,
     required this.onCancelTap,
     required this.onWriteReviewTap,
     required this.onRescheduleTap,
   });
 
-  final AppointmentBooking? nextBooking;
-  final VoidCallback onCancelTap;
+  final List<AppointmentBooking> bookings;
+  final ValueChanged<String> onCancelTap;
   final ValueChanged<AppointmentBooking> onWriteReviewTap;
   final ValueChanged<AppointmentBooking> onRescheduleTap;
 
   @override
   Widget build(BuildContext context) {
-    if (nextBooking == null) {
+    if (bookings.isEmpty) {
       return const Center(
         child: Text(
           'Không có lịch trình sắp tới',
@@ -336,12 +338,15 @@ class _ScheduleTabView extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 16, 24, 10),
       children: [
-        _ScheduleCard(
-          booking: nextBooking!,
-          onCancelTap: onCancelTap,
-          onWriteReviewTap: onWriteReviewTap,
-          onRescheduleTap: onRescheduleTap,
-        ),
+        for (final booking in bookings) ...[
+          _ScheduleCard(
+            booking: booking,
+            onCancelTap: onCancelTap,
+            onWriteReviewTap: onWriteReviewTap,
+            onRescheduleTap: onRescheduleTap,
+          ),
+          const SizedBox(height: 16),
+        ],
       ],
     );
   }
@@ -356,7 +361,7 @@ class _ScheduleCard extends StatelessWidget {
   });
 
   final AppointmentBooking booking;
-  final VoidCallback onCancelTap;
+  final ValueChanged<String> onCancelTap;
   final ValueChanged<AppointmentBooking> onWriteReviewTap;
   final ValueChanged<AppointmentBooking> onRescheduleTap;
 
@@ -462,7 +467,7 @@ class _ScheduleCard extends StatelessWidget {
                 child: _ActionButton(
                   text: 'Hủy',
                   isPrimary: false,
-                  onTap: onCancelTap,
+                  onTap: () => onCancelTap(booking.id),
                 ),
               ),
               const SizedBox(width: 16),
@@ -476,7 +481,10 @@ class _ScheduleCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const _MiniCalendarCard(useTopMargin: false),
+          _MiniCalendarCard(
+            displayDate: booking.dateTime,
+            useTopMargin: false,
+          ),
         ],
       ),
     );
@@ -504,7 +512,7 @@ class _AppointmentCard extends StatelessWidget {
 
   final AppointmentBooking booking;
   final _AppointmentTabType tabType;
-  final VoidCallback onCancelTap;
+  final ValueChanged<String> onCancelTap;
   final ValueChanged<AppointmentBooking> onWriteReviewTap;
   final ValueChanged<AppointmentBooking> onRescheduleTap;
 
@@ -614,7 +622,7 @@ class _AppointmentCard extends StatelessWidget {
                 child: _ActionButton(
                   text: firstButtonText,
                   isPrimary: false,
-                  onTap: isCompleted ? () => onRescheduleTap(booking) : onCancelTap,
+                  onTap: isCompleted ? () => onRescheduleTap(booking) : () => onCancelTap(booking.id),
                 ),
               ),
               const SizedBox(width: 16),
@@ -681,13 +689,30 @@ class _ActionButton extends StatelessWidget {
 }
 
 class _MiniCalendarCard extends StatelessWidget {
-  const _MiniCalendarCard({this.useTopMargin = true});
+  const _MiniCalendarCard({
+    required this.displayDate,
+    this.useTopMargin = true,
+  });
 
+  final DateTime displayDate;
   final bool useTopMargin;
 
   @override
   Widget build(BuildContext context) {
-    final days = List<int>.generate(35, (i) => i + 1);
+    final firstDayOfMonth = DateTime(displayDate.year, displayDate.month, 1);
+    final lastDayOfMonth = DateTime(displayDate.year, displayDate.month + 1, 0);
+    final daysInMonth = lastDayOfMonth.day;
+    final weekdayOffset = (firstDayOfMonth.weekday % 7); // 0 = CN, 1 = T2...
+    
+    // Tính tổng số ô cần hiển thị (bội số của 7)
+    final totalCells = ((weekdayOffset + daysInMonth + 6) ~/ 7) * 7;
+    
+    final cells = List<int?>.generate(totalCells, (index) {
+      final dayNum = index - weekdayOffset + 1;
+      if (dayNum < 1 || dayNum > daysInMonth) return null;
+      return dayNum;
+    });
+
     return Container(
       margin: useTopMargin ? const EdgeInsets.only(top: 10) : EdgeInsets.zero,
       padding: const EdgeInsets.all(16),
@@ -700,11 +725,14 @@ class _MiniCalendarCard extends StatelessWidget {
       ),
       child: Column(
         children: [
-          const Row(
+          Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Tháng 3 2026', style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-              Row(
+              Text(
+                'Tháng ${displayDate.month} ${displayDate.year}', 
+                style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)
+              ),
+              const Row(
                 children: [
                   Icon(Icons.chevron_left, size: 16, color: Color(0xFF9CA3AF)),
                   Icon(Icons.chevron_right, size: 16, color: Color(0xFF1C2A3A)),
@@ -721,7 +749,7 @@ class _MiniCalendarCard extends StatelessWidget {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: days.length,
+            itemCount: cells.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 7,
               mainAxisSpacing: 8,
@@ -729,29 +757,23 @@ class _MiniCalendarCard extends StatelessWidget {
               childAspectRatio: 1,
             ),
             itemBuilder: (context, index) {
-              final d = days[index];
-              final v = d <= 31 ? d : d - 31;
-              final darkSelected = v == 30 && d <= 31;
-              final lightSelected = v == 28 && d <= 31;
-              final faded = d > 31;
+              final dayNumber = cells[index];
+              if (dayNumber == null) return const SizedBox.shrink();
+              
+              final isTargetDay = dayNumber == displayDate.day;
+              
               return Container(
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: darkSelected
-                      ? const Color(0xFF1C2A3A)
-                      : lightSelected
-                      ? const Color(0xFFA8CCC0)
-                      : Colors.transparent,
+                  color: isTargetDay ? const Color(0xFF1C2A3A) : Colors.transparent,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  '$v',
+                  '$dayNumber',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w700,
-                    color: darkSelected
-                        ? Colors.white
-                        : (faded ? const Color(0xFFD1D5DB) : const Color(0xFF6B7280)),
+                    color: isTargetDay ? Colors.white : const Color(0xFF6B7280),
                   ),
                 ),
               );
