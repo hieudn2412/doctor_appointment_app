@@ -2,12 +2,11 @@ import 'package:doctor_appointment_app/views/home/doctor_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:doctor_appointment_app/views/home/models/hospital_item.dart';
 import 'package:doctor_appointment_app/views/home/models/specialty.dart';
-// Import các màn hình để điều hướng từ menu bar
 import 'package:doctor_appointment_app/views/appointment/manage_appointments_screen.dart';
 import 'package:doctor_appointment_app/views/profile/profile_screen.dart';
 import 'package:doctor_appointment_app/views/home/widgets/home_bottom_menu_bar.dart';
 
-class HospitalDetailScreen extends StatelessWidget {
+class HospitalDetailScreen extends StatefulWidget {
   final HospitalItem hospital;
 
   const HospitalDetailScreen({
@@ -16,13 +15,32 @@ class HospitalDetailScreen extends StatelessWidget {
   });
 
   @override
+  State<HospitalDetailScreen> createState() => _HospitalDetailScreenState();
+}
+
+class _HospitalDetailScreenState extends State<HospitalDetailScreen> {
+  // Biến trạng thái để kiểm soát việc hiển thị tất cả chuyên khoa
+  bool _showAllSpecialties = false;
+
+  // Danh sách chuyên khoa đầy đủ
+  final List<Specialty> allSpecialties = [
+    Specialty(name: 'Nha khoa', icon: Icons.health_and_safety, color: const Color(0xFFE59A9A)),
+    Specialty(name: 'Tim mạch', icon: Icons.favorite, color: const Color(0xFF9AC6A7)),
+    Specialty(name: 'Hô hấp', icon: Icons.air, color: const Color(0xFFF4B183)),
+    Specialty(name: 'Tổng thể', icon: Icons.medical_information, color: const Color(0xFFB1A7D1)),
+    // Thêm các chuyên khoa khác để test tính năng "Xem tất cả"
+    Specialty(name: 'Nhi khoa', icon: Icons.child_care, color: const Color(0xFF81D4FA)),
+    Specialty(name: 'Thần kinh', icon: Icons.psychology, color: const Color(0xFFCE93D8)),
+    Specialty(name: 'Tai mũi họng', icon: Icons.hearing, color: const Color(0xFFFFF59D)),
+    Specialty(name: 'Nhãn khoa', icon: Icons.visibility, color: const Color(0xFFA5D6A7)),
+  ];
+
+  @override
   Widget build(BuildContext context) {
-    final List<Specialty> specialties = [
-      Specialty(name: 'Nha khoa', icon: Icons.health_and_safety, color: const Color(0xFFE59A9A)),
-      Specialty(name: 'Tim mạch', icon: Icons.favorite, color: const Color(0xFF9AC6A7)),
-      Specialty(name: 'Hô hấp', icon: Icons.air, color: const Color(0xFFF4B183)),
-      Specialty(name: 'Tổng thể', icon: Icons.medical_information, color: const Color(0xFFB1A7D1)),
-    ];
+    // Nếu chưa bấm "Xem tất cả", chỉ lấy 4 mục đầu tiên
+    final displaySpecialties = _showAllSpecialties
+        ? allSpecialties
+        : allSpecialties.take(4).toList();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -42,7 +60,6 @@ class HospitalDetailScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-            // Phần nội dung có thể cuộn
             Expanded(
               child: SingleChildScrollView(
                 child: Column(
@@ -53,9 +70,9 @@ class HospitalDetailScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(16.0),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(15),
-                        child: hospital.imageAssetPath != null
+                        child: widget.hospital.imageAssetPath != null
                             ? Image.asset(
-                          hospital.imageAssetPath!,
+                          widget.hospital.imageAssetPath!,
                           height: 200,
                           width: double.infinity,
                           fit: BoxFit.cover,
@@ -69,7 +86,7 @@ class HospitalDetailScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Center(
                         child: Text(
-                          hospital.name,
+                          widget.hospital.name,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
                             fontSize: 22,
@@ -94,7 +111,7 @@ class HospitalDetailScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            '${hospital.name} tọa lạc tại ${hospital.address}. Đây là cơ sở y tế đạt chuẩn ${hospital.typeLabel}, cung cấp dịch vụ khám chữa bệnh toàn diện với đội ngũ bác sĩ chuyên môn cao.',
+                            '${widget.hospital.name} tọa lạc tại ${widget.hospital.address}. Đây là cơ sở y tế đạt chuẩn ${widget.hospital.typeLabel}, cung cấp dịch vụ khám chữa bệnh toàn diện với đội ngũ bác sĩ chuyên môn cao.',
                             style: const TextStyle(color: Colors.grey, height: 1.5),
                           ),
                         ],
@@ -135,8 +152,15 @@ class HospitalDetailScreen extends StatelessWidget {
                             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                           ),
                           TextButton(
-                            onPressed: () {},
-                            child: const Text('Xem tất cả', style: TextStyle(color: Colors.grey)),
+                            onPressed: () {
+                              setState(() {
+                                _showAllSpecialties = !_showAllSpecialties;
+                              });
+                            },
+                            child: Text(
+                              _showAllSpecialties ? 'Thu gọn' : 'Xem tất cả',
+                              style: const TextStyle(color: Colors.grey),
+                            ),
                           ),
                         ],
                       ),
@@ -148,7 +172,7 @@ class HospitalDetailScreen extends StatelessWidget {
                       child: GridView.builder(
                         shrinkWrap: true,
                         physics: const NeverScrollableScrollPhysics(),
-                        itemCount: specialties.length,
+                        itemCount: displaySpecialties.length,
                         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: 4,
                           mainAxisSpacing: 10,
@@ -156,7 +180,7 @@ class HospitalDetailScreen extends StatelessWidget {
                           childAspectRatio: 0.75,
                         ),
                         itemBuilder: (context, index) {
-                          final item = specialties[index];
+                          final item = displaySpecialties[index];
                           return Column(
                             children: [
                               Container(
@@ -175,6 +199,8 @@ class HospitalDetailScreen extends StatelessWidget {
                                 item.name,
                                 style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
                                 textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ],
                           );
