@@ -1,3 +1,4 @@
+import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
 import 'package:doctor_appointment_app/views/appointment/data/appointment_database.dart';
 import 'package:doctor_appointment_app/views/appointment/models/appointment_booking.dart';
 import 'package:doctor_appointment_app/views/appointment/models/doctor_review.dart';
@@ -123,26 +124,48 @@ class AppointmentBookingStore extends ChangeNotifier {
 
   // --- Logic Review ---
 
+  /// Upsert: nếu bác sĩ này đã có review thì cập nhật, nếu chưa thìm mới.
   Future<void> addReview({
     required String doctorId,
     required int rating,
     required String content,
   }) async {
     await _loadingFuture;
-    
-    _reviewIdCounter += 1;
-    final review = DoctorReview(
-      id: 'rev_${DateTime.now().millisecondsSinceEpoch}_$_reviewIdCounter',
-      doctorId: doctorId,
-      rating: rating,
-      content: content,
-      userName: 'Người dùng', // Có thể thay bằng tên người dùng thực tế
-      createdAt: DateTime.now(),
-    );
+
+    // Lấy tên hiện tại của người dùng từ Session
+    final currentUserName =
+        SessionManager.instance.currentUser?.name?.trim().isNotEmpty == true
+            ? SessionManager.instance.currentUser!.name!
+            : 'Người dùng';
+
+    // Kiểm tra xem đã có review cho bác sĩ này chưa
+    final existing = await _database.getMyReviewForDoctor(doctorId);
 
     try {
-      await _database.insertReview(review);
-      // Bạn có thể lưu thêm vào một list local _reviews nếu cần hiển thị ngay tại chỗ
+      if (existing != null) {
+        // Cập nhật review cũ (update cả tên nếu họ đã đổi tên)
+        final updated = DoctorReview(
+          id: existing.id,
+          doctorId: existing.doctorId,
+          rating: rating,
+          content: content,
+          userName: currentUserName,
+          createdAt: DateTime.now(),
+        );
+        await _database.updateReview(updated);
+      } else {
+        // Tạo review mới
+        _reviewIdCounter += 1;
+        final review = DoctorReview(
+          id: 'rev_${DateTime.now().millisecondsSinceEpoch}_$_reviewIdCounter',
+          doctorId: doctorId,
+          rating: rating,
+          content: content,
+          userName: currentUserName,
+          createdAt: DateTime.now(),
+        );
+        await _database.insertReview(review);
+      }
       notifyListeners();
     } catch (e) {
       debugPrint('Error saving review: $e');
@@ -152,6 +175,11 @@ class AppointmentBookingStore extends ChangeNotifier {
 
   Future<List<DoctorReview>> getReviewsForDoctor(String doctorId) async {
     return await _database.getReviewsForDoctor(doctorId);
+  }
+
+  /// Lấy review hiện tại của user cho bác sĩ (dùng để pre-fill form).
+  Future<DoctorReview?> getMyReviewForDoctor(String doctorId) async {
+    return await _database.getMyReviewForDoctor(doctorId);
   }
 
   // --- Hệ thống ---

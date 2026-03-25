@@ -1,4 +1,5 @@
 import 'package:doctor_appointment_app/views/appointment/data/appointment_booking_store.dart';
+import 'package:doctor_appointment_app/views/appointment/models/doctor_review.dart';
 import 'package:flutter/material.dart';
 
 class WriteReviewScreen extends StatefulWidget {
@@ -9,6 +10,7 @@ class WriteReviewScreen extends StatefulWidget {
     required this.specialty,
     required this.hospital,
     required this.imagePath,
+    this.existingReview,
   });
 
   final String doctorId;
@@ -16,15 +18,27 @@ class WriteReviewScreen extends StatefulWidget {
   final String specialty;
   final String hospital;
   final String imagePath;
+  /// Nếu khác null: đang chỉnh sửa review cũ, pre-fill rating + nội dung.
+  final DoctorReview? existingReview;
 
   @override
   State<WriteReviewScreen> createState() => _WriteReviewScreenState();
 }
 
 class _WriteReviewScreenState extends State<WriteReviewScreen> {
-  int _selectedRating = 5;
-  final TextEditingController _reviewController = TextEditingController();
+  late int _selectedRating;
+  late final TextEditingController _reviewController;
   bool _isSubmitting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Pre-fill nếu đang chỉnh sửa review cũ
+    _selectedRating = widget.existingReview?.rating ?? 5;
+    _reviewController = TextEditingController(
+      text: widget.existingReview?.content ?? '',
+    );
+  }
 
   @override
   void dispose() {
@@ -79,11 +93,13 @@ class _WriteReviewScreenState extends State<WriteReviewScreen> {
                     onPressed: () => Navigator.of(context).pop(),
                     icon: const Icon(Icons.arrow_back, color: Color(0xFF374151)),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Đánh giá bác sĩ',
+                      widget.existingReview != null
+                          ? 'Cập nhật đánh giá'
+                          : 'Đánh giá bác sĩ',
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
                         color: Color(0xFF374151),

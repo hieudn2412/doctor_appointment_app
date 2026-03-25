@@ -1,15 +1,39 @@
+import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
 import 'package:doctor_appointment_app/views/appointment/appointment_screen.dart';
+import 'package:doctor_appointment_app/views/appointment/data/appointment_booking_store.dart';
+import 'package:doctor_appointment_app/views/appointment/models/doctor_review.dart';
 import 'package:doctor_appointment_app/views/home/doctor_reviews_screen.dart';
 import 'package:doctor_appointment_app/views/home/models/doctor_item.dart';
 import 'package:flutter/material.dart';
 
-class DoctorDetailScreen extends StatelessWidget {
+class DoctorDetailScreen extends StatefulWidget {
   const DoctorDetailScreen({
     super.key,
     required this.doctor,
   });
 
   final DoctorItem doctor;
+
+  @override
+  State<DoctorDetailScreen> createState() => _DoctorDetailScreenState();
+}
+
+class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
+  List<DoctorReview> _reviews = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    final reviews = await AppointmentBookingStore.instance
+        .getReviewsForDoctor(widget.doctor.id.toString());
+    if (mounted) {
+      setState(() => _reviews = reviews);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,13 +94,13 @@ class DoctorDetailScreen extends StatelessWidget {
                               child: SizedBox(
                                 width: 109,
                                 height: 109,
-                                child: doctor.imageAssetPath == null
+                                child: widget.doctor.imageAssetPath == null
                                     ? const ColoredBox(
                                         color: Color(0xFFE5E7EB),
                                         child: Icon(Icons.person, size: 36),
                                       )
                                     : Image.asset(
-                                        doctor.imageAssetPath!,
+                                        widget.doctor.imageAssetPath!,
                                         fit: BoxFit.cover,
                                         errorBuilder: (context, error, stackTrace) =>
                                             const ColoredBox(
@@ -92,7 +116,7 @@ class DoctorDetailScreen extends StatelessWidget {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    doctor.name,
+                                    widget.doctor.name,
                                     style: const TextStyle(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
@@ -105,7 +129,7 @@ class DoctorDetailScreen extends StatelessWidget {
                                   const Divider(height: 1, color: Color(0xFFE5E7EB)),
                                   const SizedBox(height: 8),
                                   Text(
-                                    doctor.specialty,
+                                    widget.doctor.specialty,
                                     style: const TextStyle(
                                       fontSize: 14,
                                       fontWeight: FontWeight.w600,
@@ -119,7 +143,7 @@ class DoctorDetailScreen extends StatelessWidget {
                                       const SizedBox(width: 4),
                                       Expanded(
                                         child: Text(
-                                          doctor.hospitalName,
+                                          widget.doctor.hospitalName,
                                           style: const TextStyle(
                                             fontSize: 14,
                                             color: Color(0xFF4B5563),
@@ -181,7 +205,7 @@ class DoctorDetailScreen extends StatelessWidget {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(24, 8, 24, 0),
                       child: Text(
-                        '${doctor.name}, một bác sĩ tim mạch tận tâm, làm việc cho ${doctor.hospitalName}, Nam Từ Liêm, Hà Nội.',
+                        '${widget.doctor.name}, một bác sĩ tim mạch tận tâm, làm việc cho ${widget.doctor.hospitalName}, Nam Từ Liêm, Hà Nội.',
                         style: const TextStyle(
                           fontSize: 14,
                           height: 1.5,
@@ -210,7 +234,7 @@ class DoctorDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 14),
                     Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 24),
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -227,10 +251,11 @@ class DoctorDetailScreen extends StatelessWidget {
                               Navigator.of(context).push(
                                 MaterialPageRoute<void>(
                                   builder: (_) => DoctorReviewsScreen(
-                                    doctorName: doctor.name,
+                                    doctorId: widget.doctor.id.toString(),
+                                    doctorName: widget.doctor.name,
                                   ),
                                 ),
-                              );
+                              ).then((_) => _loadReviews());
                             },
                             child: const Text(
                               'Xem tất cả',
@@ -241,10 +266,19 @@ class DoctorDetailScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    // Review mẫu cố định
                     const Padding(
-                      padding: EdgeInsets.fromLTRB(24, 0, 24, 16),
+                      padding: EdgeInsets.fromLTRB(24, 0, 24, 8),
                       child: _ReviewTile(),
                     ),
+                    // Reviews thực tế từ người dùng (chỉ hiển thị 1 cái mới nhất)
+                    if (_reviews.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
+                        child: _UserReviewTile(review: _reviews.first),
+                      )
+                    else
+                      const SizedBox(height: 8),
                   ],
                 ),
               ),
@@ -267,7 +301,7 @@ class DoctorDetailScreen extends StatelessWidget {
                 onPressed: () {
                   Navigator.of(context).push(
                     MaterialPageRoute<void>(
-                      builder: (_) => AppointmentScreen(doctor: doctor),
+                      builder: (_) => AppointmentScreen(doctor: widget.doctor),
                     ),
                   );
                 },
@@ -387,6 +421,84 @@ class _ReviewTile extends StatelessWidget {
         const Text(
           'Bác sĩ A rất có chuyên gia thật sự, luôn thể hiện sự quan tâm đến bệnh nhân. Tôi rất khuyến nghị.',
           style: TextStyle(
+            fontSize: 14,
+            height: 1.5,
+            color: Color(0xFF6B7280),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Hiển thị 1 review thực tế từ người dùng
+class _UserReviewTile extends StatelessWidget {
+  const _UserReviewTile({required this.review});
+
+  final DoctorReview review;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayName = (SessionManager.instance.currentUser?.name?.trim().isNotEmpty == true)
+        ? SessionManager.instance.currentUser!.name!
+        : review.userName;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(height: 1, color: Color(0xFFE5E7EB)),
+        const SizedBox(height: 12),
+        Row(
+          children: [
+            Container(
+              width: 57,
+              height: 57,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE5E7EB),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.person, size: 28, color: Color(0xFF6B7280)),
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF374151),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Text(
+                      review.rating.toStringAsFixed(1),
+                      style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                    ),
+                    const SizedBox(width: 4),
+                    ...List.generate(
+                      5,
+                      (i) => Icon(
+                        Icons.star,
+                        size: 12,
+                        color: i < review.rating
+                            ? const Color(0xFFFEB052)
+                            : const Color(0xFFD1D5DB),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          review.content,
+          style: const TextStyle(
             fontSize: 14,
             height: 1.5,
             color: Color(0xFF6B7280),

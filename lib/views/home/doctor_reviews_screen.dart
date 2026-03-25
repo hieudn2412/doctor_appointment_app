@@ -1,21 +1,64 @@
+import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
+import 'package:doctor_appointment_app/views/appointment/data/appointment_booking_store.dart';
+import 'package:doctor_appointment_app/views/appointment/models/doctor_review.dart';
 import 'package:flutter/material.dart';
 
-class DoctorReviewsScreen extends StatelessWidget {
+class DoctorReviewsScreen extends StatefulWidget {
   const DoctorReviewsScreen({
     super.key,
+    required this.doctorId,
     required this.doctorName,
   });
 
+  final String doctorId;
   final String doctorName;
 
   @override
-  Widget build(BuildContext context) {
-    const reviews = <String>[
-      'Bác sĩ A là một chuyên gia thực thụ, luôn thật sự quan tâm đến bệnh nhân.',
-      'Bác sĩ A là một chuyên gia thực thụ, luôn thật sự quan tâm đến bệnh nhân.',
-      'Bác sĩ A là một chuyên gia thực thụ, luôn thật sự quan tâm đến bệnh nhân.',
-    ];
+  State<DoctorReviewsScreen> createState() => _DoctorReviewsScreenState();
+}
 
+class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
+  List<DoctorReview> _userReviews = [];
+  bool _isLoading = true;
+
+  // Review mẫu cố định
+  static const _staticReviews = <Map<String, dynamic>>[
+    {
+      'name': 'Phạm Thị D',
+      'rating': 5,
+      'text': 'Bác sĩ A là một chuyên gia thực thụ, luôn thật sự quan tâm đến bệnh nhân.',
+    },
+    {
+      'name': 'Nguyễn Văn B',
+      'rating': 5,
+      'text': 'Bác sĩ A là một chuyên gia thực thụ, luôn thật sự quan tâm đến bệnh nhân.',
+    },
+    {
+      'name': 'Trần Thị C',
+      'rating': 4,
+      'text': 'Bác sĩ A là một chuyên gia thực thụ, luôn thật sự quan tâm đến bệnh nhân.',
+    },
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReviews();
+  }
+
+  Future<void> _loadReviews() async {
+    final reviews =
+        await AppointmentBookingStore.instance.getReviewsForDoctor(widget.doctorId);
+    if (mounted) {
+      setState(() {
+        _userReviews = reviews;
+        _isLoading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
       body: SafeArea(
@@ -44,18 +87,59 @@ class DoctorReviewsScreen extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Expanded(
-                child: ListView.separated(
-                  itemCount: reviews.length,
-                  separatorBuilder: (context, index) => const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    return _ReviewItem(
-                      customerName: 'Phạm Thị D',
-                      reviewText: reviews[index],
-                    );
-                  },
+              if (_isLoading)
+                const Expanded(child: Center(child: CircularProgressIndicator()))
+              else
+                Expanded(
+                  child: ListView(
+                    children: [
+                      // Review mẫu cố định
+                      for (final r in _staticReviews) ...[
+                        _ReviewItem(
+                          customerName: r['name'] as String,
+                          rating: r['rating'] as int,
+                          reviewText: r['text'] as String,
+                          isUserReview: false,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      // Reviews thực tế từ người dùng
+                      if (_userReviews.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            children: [
+                              Expanded(child: Divider(color: Color(0xFFD1D5DB))),
+                              Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 12),
+                                child: Text(
+                                  'Nhận xét của bạn',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Color(0xFF6B7280),
+                                  ),
+                                ),
+                              ),
+                              Expanded(child: Divider(color: Color(0xFFD1D5DB))),
+                            ],
+                          ),
+                        ),
+                        for (final review in _userReviews) ...[
+                          _ReviewItem(
+                            customerName: (SessionManager.instance.currentUser?.name?.trim().isNotEmpty == true)
+                                ? SessionManager.instance.currentUser!.name!
+                                : review.userName,
+                            rating: review.rating,
+                            reviewText: review.content,
+                            isUserReview: true,
+                          ),
+                          const SizedBox(height: 12),
+                        ],
+                      ],
+                    ],
+                  ),
                 ),
-              ),
             ],
           ),
         ),
@@ -67,72 +151,123 @@ class DoctorReviewsScreen extends StatelessWidget {
 class _ReviewItem extends StatelessWidget {
   const _ReviewItem({
     required this.customerName,
+    required this.rating,
     required this.reviewText,
+    required this.isUserReview,
   });
 
   final String customerName;
+  final int rating;
   final String reviewText;
+  final bool isUserReview;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            ClipRRect(
-              borderRadius: BorderRadius.circular(41),
-              child: SizedBox(
-                width: 57,
-                height: 57,
-                child: Image.asset(
-                  'assets/images/customer.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const ColoredBox(
-                    color: Color(0xFFE5E7EB),
-                    child: Icon(Icons.person, size: 28, color: Color(0xFF6B7280)),
-                  ),
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: isUserReview
+          ? BoxDecoration(
+              color: const Color(0xFFEFF6FF),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFBFDBFE), width: 1),
+            )
+          : null,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(41),
+                child: SizedBox(
+                  width: 57,
+                  height: 57,
+                  child: isUserReview
+                      ? Container(
+                          color: const Color(0xFFE5E7EB),
+                          child: const Icon(Icons.person, size: 28, color: Color(0xFF6B7280)),
+                        )
+                      : Image.asset(
+                          'assets/images/customer.png',
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) => const ColoredBox(
+                            color: Color(0xFFE5E7EB),
+                            child: Icon(Icons.person, size: 28, color: Color(0xFF6B7280)),
+                          ),
+                        ),
                 ),
               ),
-            ),
-            const SizedBox(width: 12),
-            const Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Phạm Thị D',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF374151),
-                  ),
-                ),
-                SizedBox(height: 2),
-                Row(
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('5.0', style: TextStyle(fontSize: 12, color: Color(0xFF6B7280))),
-                    SizedBox(width: 4),
-                    Icon(Icons.star, size: 12, color: Color(0xFFFEB052)),
-                    Icon(Icons.star, size: 12, color: Color(0xFFFEB052)),
-                    Icon(Icons.star, size: 12, color: Color(0xFFFEB052)),
-                    Icon(Icons.star, size: 12, color: Color(0xFFFEB052)),
-                    Icon(Icons.star, size: 12, color: Color(0xFFFEB052)),
+                    Row(
+                      children: [
+                        Text(
+                          customerName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF374151),
+                          ),
+                        ),
+                        if (isUserReview) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1C2A3A),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Text(
+                              'Bạn',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 2),
+                    Row(
+                      children: [
+                        Text(
+                          rating.toStringAsFixed(1),
+                          style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+                        ),
+                        const SizedBox(width: 4),
+                        ...List.generate(
+                          5,
+                          (i) => Icon(
+                            Icons.star,
+                            size: 12,
+                            color: i < rating
+                                ? const Color(0xFFFEB052)
+                                : const Color(0xFFD1D5DB),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: 6),
-        Text(
-          reviewText,
-          style: const TextStyle(
-            fontSize: 14,
-            height: 1.5,
-            color: Color(0xFF6B7280),
+              ),
+            ],
           ),
-        ),
-      ],
+          const SizedBox(height: 6),
+          Text(
+            reviewText,
+            style: const TextStyle(
+              fontSize: 14,
+              height: 1.5,
+              color: Color(0xFF6B7280),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

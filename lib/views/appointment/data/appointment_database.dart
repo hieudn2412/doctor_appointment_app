@@ -104,4 +104,31 @@ class AppointmentDatabase {
     );
     return rows.map(DoctorReview.fromMap).toList();
   }
+
+  /// Trả về review duy nhất của user cho bác sĩ (nếu có).
+  Future<DoctorReview?> getMyReviewForDoctor(String doctorId) async {
+    await _initFuture;
+    final db = await DatabaseHelper.instance.database;
+    final rows = await db.query(
+      _reviewTable,
+      where: 'doctor_id = ?',
+      whereArgs: [doctorId],
+      orderBy: 'created_at_ms ASC',
+      limit: 1,
+    );
+    if (rows.isEmpty) return null;
+    return DoctorReview.fromMap(rows.first);
+  }
+
+  Future<void> updateReview(DoctorReview review) async {
+    await _initFuture;
+    final db = await DatabaseHelper.instance.database;
+    await db.update(
+      _reviewTable,
+      review.toMap(),
+      where: 'id = ?',
+      whereArgs: [review.id],
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
 }

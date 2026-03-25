@@ -81,6 +81,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
                     tabType: _AppointmentTabType.upcoming,
                     bookings: _store.upcomingBookings,
                     onCancelTap: _showCancelModal,
+                    onConfirmTap: _showConfirmModal,
                     onWriteReviewTap: _openWriteReview,
                     onRescheduleTap: _openReschedule,
                   ),
@@ -88,12 +89,14 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
                     tabType: _AppointmentTabType.completed,
                     bookings: _store.completedBookings,
                     onCancelTap: _showCancelModal,
+                    onConfirmTap: _showConfirmModal,
                     onWriteReviewTap: _openWriteReview,
                     onRescheduleTap: _openReschedule,
                   ),
                   _ScheduleTabView(
                     bookings: _store.upcomingBookings,
                     onCancelTap: _showCancelModal,
+                    onConfirmTap: _showConfirmModal,
                     onWriteReviewTap: _openWriteReview,
                     onRescheduleTap: _openReschedule,
                   ),
@@ -230,15 +233,122 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
     );
   }
 
-  void _openWriteReview(AppointmentBooking booking) {
+  void _showConfirmModal(AppointmentBooking booking) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      barrierColor: const Color(0x66000000),
+      builder: (context) {
+        return Container(
+          height: 210,
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(34),
+              topRight: Radius.circular(34),
+              bottomLeft: Radius.circular(54),
+              bottomRight: Radius.circular(54),
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              const Text(
+                'Xác nhận đã khám',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF1C2A3A),
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 1, color: Color(0xFFE5E7EB)),
+              const SizedBox(height: 16),
+              const Text(
+                'Bạn đã khám xong với bác sĩ này? Hãy để lại đánh giá!',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF6B7280),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(50),
+                      onTap: () => Navigator.of(context).pop(),
+                      child: Container(
+                        height: 41,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFE5E7EB),
+                          borderRadius: BorderRadius.circular(50),
+                        ),
+                        child: const Text(
+                          'Bỏ qua',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1C2A3A),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(50),
+                      onTap: () async {
+                        await _store.markBookingCompleted(booking.id);
+                        if (mounted) {
+                          Navigator.of(context).pop();
+                          _openWriteReview(booking);
+                        }
+                      },
+                      child: Container(
+                        height: 41,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1C2A3A),
+                          borderRadius: BorderRadius.circular(50),
+                        ),
+                        child: const Text(
+                          'Xác nhận & Đánh giá',
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openWriteReview(AppointmentBooking booking) async {
+    final existingReview = await _store.getMyReviewForDoctor(booking.doctorId);
+    if (!mounted) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => WriteReviewScreen(
-          doctorId: booking.doctorId, // Đã thêm doctorId
+          doctorId: booking.doctorId,
           doctorName: booking.doctorName,
           specialty: booking.specialty,
           hospital: booking.hospital,
           imagePath: booking.imagePath,
+          existingReview: existingReview,
         ),
       ),
     );
@@ -266,6 +376,7 @@ class _AppointmentList extends StatelessWidget {
     required this.tabType,
     required this.bookings,
     required this.onCancelTap,
+    required this.onConfirmTap,
     required this.onWriteReviewTap,
     required this.onRescheduleTap,
   });
@@ -273,6 +384,7 @@ class _AppointmentList extends StatelessWidget {
   final _AppointmentTabType tabType;
   final List<AppointmentBooking> bookings;
   final ValueChanged<String> onCancelTap;
+  final ValueChanged<AppointmentBooking> onConfirmTap;
   final ValueChanged<AppointmentBooking> onWriteReviewTap;
   final ValueChanged<AppointmentBooking> onRescheduleTap;
 
@@ -298,6 +410,7 @@ class _AppointmentList extends StatelessWidget {
             booking: booking,
             tabType: tabType,
             onCancelTap: onCancelTap,
+            onConfirmTap: onConfirmTap,
             onWriteReviewTap: onWriteReviewTap,
             onRescheduleTap: onRescheduleTap,
           ),
@@ -312,12 +425,14 @@ class _ScheduleTabView extends StatelessWidget {
   const _ScheduleTabView({
     required this.bookings,
     required this.onCancelTap,
+    required this.onConfirmTap,
     required this.onWriteReviewTap,
     required this.onRescheduleTap,
   });
 
   final List<AppointmentBooking> bookings;
   final ValueChanged<String> onCancelTap;
+  final ValueChanged<AppointmentBooking> onConfirmTap;
   final ValueChanged<AppointmentBooking> onWriteReviewTap;
   final ValueChanged<AppointmentBooking> onRescheduleTap;
 
@@ -342,6 +457,7 @@ class _ScheduleTabView extends StatelessWidget {
           _ScheduleCard(
             booking: booking,
             onCancelTap: onCancelTap,
+            onConfirmTap: onConfirmTap,
             onWriteReviewTap: onWriteReviewTap,
             onRescheduleTap: onRescheduleTap,
           ),
@@ -356,12 +472,14 @@ class _ScheduleCard extends StatelessWidget {
   const _ScheduleCard({
     required this.booking,
     required this.onCancelTap,
+    required this.onConfirmTap,
     required this.onWriteReviewTap,
     required this.onRescheduleTap,
   });
 
   final AppointmentBooking booking;
   final ValueChanged<String> onCancelTap;
+  final ValueChanged<AppointmentBooking> onConfirmTap;
   final ValueChanged<AppointmentBooking> onWriteReviewTap;
   final ValueChanged<AppointmentBooking> onRescheduleTap;
 
@@ -470,12 +588,20 @@ class _ScheduleCard extends StatelessWidget {
                   onTap: () => onCancelTap(booking.id),
                 ),
               ),
-              const SizedBox(width: 16),
+              const SizedBox(width: 8),
               Expanded(
                 child: _ActionButton(
                   text: 'Đổi lịch',
-                  isPrimary: true,
+                  isPrimary: false,
                   onTap: () => onRescheduleTap(booking),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _ActionButton(
+                  text: 'Đã khám',
+                  isPrimary: true,
+                  onTap: () => onConfirmTap(booking),
                 ),
               ),
             ],
@@ -506,6 +632,7 @@ class _AppointmentCard extends StatelessWidget {
     required this.booking,
     required this.tabType,
     required this.onCancelTap,
+    required this.onConfirmTap,
     required this.onWriteReviewTap,
     required this.onRescheduleTap,
   });
@@ -513,14 +640,13 @@ class _AppointmentCard extends StatelessWidget {
   final AppointmentBooking booking;
   final _AppointmentTabType tabType;
   final ValueChanged<String> onCancelTap;
+  final ValueChanged<AppointmentBooking> onConfirmTap;
   final ValueChanged<AppointmentBooking> onWriteReviewTap;
   final ValueChanged<AppointmentBooking> onRescheduleTap;
 
   @override
   Widget build(BuildContext context) {
     final isCompleted = tabType == _AppointmentTabType.completed;
-    final firstButtonText = isCompleted ? 'Đặt lại' : 'Hủy';
-    final secondButtonText = isCompleted ? 'Viết đánh giá' : 'Đổi lịch';
 
     final timeText =
         '${_formatTime(booking.dateTime)} • ${booking.dateTime.day} tháng ${booking.dateTime.month}, ${booking.dateTime.year}';
@@ -616,26 +742,54 @@ class _AppointmentCard extends StatelessWidget {
           const SizedBox(height: 12),
           const Divider(height: 1, color: Color(0xFFE5E7EB)),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: _ActionButton(
-                  text: firstButtonText,
-                  isPrimary: false,
-                  onTap: isCompleted ? () => onRescheduleTap(booking) : () => onCancelTap(booking.id),
+          if (!isCompleted)
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionButton(
+                    text: 'Hủy',
+                    isPrimary: false,
+                    onTap: () => onCancelTap(booking.id),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: _ActionButton(
-                  text: secondButtonText,
-                  isPrimary: true,
-                  onTap:
-                      isCompleted ? () => onWriteReviewTap(booking) : () => onRescheduleTap(booking),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ActionButton(
+                    text: 'Đổi lịch',
+                    isPrimary: false,
+                    onTap: () => onRescheduleTap(booking),
+                  ),
                 ),
-              ),
-            ],
-          ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _ActionButton(
+                    text: 'Đã khám',
+                    isPrimary: true,
+                    onTap: () => onConfirmTap(booking),
+                  ),
+                ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: _ActionButton(
+                    text: 'Đặt lại',
+                    isPrimary: false,
+                    onTap: () => onRescheduleTap(booking),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _ActionButton(
+                    text: 'Viết đánh giá',
+                    isPrimary: true,
+                    onTap: () => onWriteReviewTap(booking),
+                  ),
+                ),
+              ],
+            ),
         ],
       ),
     );
