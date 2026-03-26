@@ -2,7 +2,9 @@ import 'package:doctor_appointment_app/data/implementations/local/session_manage
 import 'package:doctor_appointment_app/views/appointment/data/appointment_database.dart';
 import 'package:doctor_appointment_app/views/appointment/models/appointment_booking.dart';
 import 'package:doctor_appointment_app/views/appointment/models/doctor_review.dart';
+import 'package:doctor_appointment_app/views/home/data/notification_store.dart';
 import 'package:doctor_appointment_app/views/home/models/doctor_item.dart';
+import 'package:doctor_appointment_app/views/home/models/user_notification.dart';
 import 'package:flutter/foundation.dart';
 
 class AppointmentBookingStore extends ChangeNotifier {
@@ -78,6 +80,12 @@ class AppointmentBookingStore extends ChangeNotifier {
 
     try {
       await _database.insertBooking(booking);
+      await _createNotification(
+        type: UserNotificationType.success,
+        title: 'Đặt lịch thành công',
+        message:
+            'Bạn đã đặt lịch hẹn thành công với bác sĩ ${booking.doctorName}',
+      );
       return booking.id;
     } catch (e) {
       _bookings.removeWhere((b) => b.id == booking.id);
@@ -100,10 +108,19 @@ class AppointmentBookingStore extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final deletedRows = await _database.deleteBooking(bookingId, _loadedUserId!);
+      final deletedRows = await _database.deleteBooking(
+        bookingId,
+        _loadedUserId!,
+      );
       if (deletedRows <= 0) {
         throw Exception('Không tìm thấy lịch hẹn để hủy');
       }
+      await _createNotification(
+        type: UserNotificationType.danger,
+        title: 'Đã hủy lịch hẹn',
+        message:
+            'Bạn đã hủy lịch hẹn thành công với bác sĩ ${removed.doctorName}',
+      );
     } catch (e) {
       _bookings.insert(index, removed);
       notifyListeners();
@@ -130,6 +147,12 @@ class AppointmentBookingStore extends ChangeNotifier {
       if (updatedRows <= 0) {
         throw Exception('Không thể đổi lịch hẹn');
       }
+      await _createNotification(
+        type: UserNotificationType.neutral,
+        title: 'Đã thay đổi lịch hẹn',
+        message:
+            'Bạn đã thay đổi lịch hẹn với bác sĩ ${updated.doctorName} thành công',
+      );
     } catch (e) {
       _bookings[index] = previous;
       notifyListeners();
@@ -153,6 +176,12 @@ class AppointmentBookingStore extends ChangeNotifier {
       if (updatedRows <= 0) {
         throw Exception('Không thể cập nhật trạng thái lịch hẹn');
       }
+      await _createNotification(
+        type: UserNotificationType.neutral,
+        title: 'Đã hoàn tất lịch hẹn',
+        message:
+            'Bạn đã xác nhận hoàn tất lịch hẹn với bác sĩ ${updated.doctorName}',
+      );
     } catch (e) {
       _bookings[index] = previous;
       notifyListeners();
@@ -175,8 +204,9 @@ class AppointmentBookingStore extends ChangeNotifier {
       throw Exception('Vui lòng đăng nhập để đánh giá bác sĩ');
     }
 
-    final currentUserName =
-        currentUser.name.trim().isNotEmpty ? currentUser.name : 'Người dùng';
+    final currentUserName = currentUser.name.trim().isNotEmpty
+        ? currentUser.name
+        : 'Người dùng';
 
     final existing = await _database.getMyReviewForDoctor(
       userId: currentUser.id!,
@@ -250,9 +280,9 @@ class AppointmentBookingStore extends ChangeNotifier {
     }
 
     try {
-      final storedBookings = await _database.getBookingsForUser(userId).timeout(
-            const Duration(seconds: 5),
-          );
+      final storedBookings = await _database
+          .getBookingsForUser(userId)
+          .timeout(const Duration(seconds: 5));
       _bookings
         ..clear()
         ..addAll(storedBookings);
@@ -275,6 +305,24 @@ class AppointmentBookingStore extends ChangeNotifier {
       final parsed = int.tryParse(parts[1]);
       if (parsed != null && parsed > _idCounter) {
         _idCounter = parsed;
+      }
+    }
+  }
+
+  Future<void> _createNotification({
+    required UserNotificationType type,
+    required String title,
+    required String message,
+  }) async {
+    try {
+      await NotificationStore.instance.addNotification(
+        type: type,
+        title: title,
+        message: message,
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Create notification failed: $e');
       }
     }
   }

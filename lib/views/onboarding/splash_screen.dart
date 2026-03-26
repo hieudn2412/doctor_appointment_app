@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
 import 'package:doctor_appointment_app/views/appointment/data/appointment_booking_store.dart';
 import 'package:doctor_appointment_app/views/admin/admin_home_screen.dart';
+import 'package:doctor_appointment_app/views/home/data/notification_store.dart';
 import 'package:doctor_appointment_app/views/home/home_screen.dart';
 import 'package:doctor_appointment_app/views/onboarding/onboarding_screens.dart';
 import 'package:flutter/material.dart';
@@ -34,17 +35,19 @@ class _SplashScreenState extends State<SplashScreen> {
 
     if (hasSession) {
       await AppointmentBookingStore.instance.refreshForCurrentUser();
+      await NotificationStore.instance.refreshForCurrentUser();
       if (!mounted) return;
       final isAdmin = SessionManager.instance.currentUser?.role == 'admin';
-      Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
-        builder: (_) => isAdmin ? const AdminHomeScreen() : const HomeScreen(),
-      ));
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) =>
+              isAdmin ? const AdminHomeScreen() : const HomeScreen(),
+        ),
+      );
     } else {
       // Chưa đăng nhập → màn hình onboarding
       Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => const OnboardingFirstScreen(),
-        ),
+        MaterialPageRoute<void>(builder: (_) => const OnboardingFirstScreen()),
       );
     }
   }
@@ -111,14 +114,14 @@ class _SplashScreenState extends State<SplashScreen> {
                       borderRadius: BorderRadius.circular(30),
                       boxShadow: [
                         BoxShadow(
-                          color: const Color(0xFF1C2A3A).withValues(alpha: 0.12),
+                          color: const Color(
+                            0xFF1C2A3A,
+                          ).withValues(alpha: 0.12),
                           blurRadius: 30,
                           offset: const Offset(0, 14),
                         ),
                       ],
-                      border: Border.all(
-                        color: const Color(0xFF334155),
-                      ),
+                      border: Border.all(color: const Color(0xFF334155)),
                     ),
                     child: Image.asset(
                       SplashScreen.logoAsset,

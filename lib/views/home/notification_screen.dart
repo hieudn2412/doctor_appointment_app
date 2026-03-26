@@ -1,10 +1,93 @@
+import 'package:doctor_appointment_app/views/home/data/notification_store.dart';
+import 'package:doctor_appointment_app/views/home/models/user_notification.dart';
 import 'package:flutter/material.dart';
 
-class NotificationScreen extends StatelessWidget {
+class NotificationScreen extends StatefulWidget {
   const NotificationScreen({super.key});
 
   @override
+  State<NotificationScreen> createState() => _NotificationScreenState();
+}
+
+class _NotificationScreenState extends State<NotificationScreen> {
+  final NotificationStore _store = NotificationStore.instance;
+
+  @override
+  void initState() {
+    super.initState();
+    _store.addListener(_onStoreChanged);
+    _refreshNotifications();
+  }
+
+  @override
+  void dispose() {
+    _store.removeListener(_onStoreChanged);
+    super.dispose();
+  }
+
+  void _onStoreChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  Future<void> _refreshNotifications() async {
+    try {
+      await _store.refreshForCurrentUser();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không thể tải thông báo: $e'),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+    }
+  }
+
+  Future<void> _markSectionAsRead(List<UserNotification> items) async {
+    final unreadIds = items
+        .where((item) => !item.isRead)
+        .map((e) => e.id)
+        .toList();
+    if (unreadIds.isEmpty) return;
+
+    try {
+      await _store.markItemsAsRead(unreadIds);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không thể cập nhật thông báo: $e'),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+    }
+  }
+
+  Future<void> _markOneAsRead(UserNotification item) async {
+    if (item.isRead) return;
+
+    try {
+      await _store.markAsRead(item.id);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Không thể cập nhật thông báo: $e'),
+          backgroundColor: const Color(0xFFEF4444),
+        ),
+      );
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final allItems = _store.items;
+    final todayItems = _store.todayItems;
+    final yesterdayItems = _store.yesterdayItems;
+    final olderItems = _store.olderItems;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -16,7 +99,10 @@ class NotificationScreen extends StatelessWidget {
                 children: [
                   IconButton(
                     onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back, color: Color(0xFF374151)),
+                    icon: const Icon(
+                      Icons.arrow_back,
+                      color: Color(0xFF374151),
+                    ),
                   ),
                   const Expanded(
                     child: Text(
@@ -31,14 +117,17 @@ class NotificationScreen extends StatelessWidget {
                   ),
                   Container(
                     height: 25,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFF4B5563),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Text(
-                      '1 tin',
-                      style: TextStyle(
+                    child: Text(
+                      '${allItems.length} tin',
+                      style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,
@@ -50,38 +139,11 @@ class NotificationScreen extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: ListView(
-                padding: const EdgeInsets.only(bottom: 12),
-                children: const [
-                  _SectionHeader(title: 'HÔM NAY'),
-                  _NotificationTile(
-                    type: _NotificationType.success,
-                    title: 'Đặt lịch thành công',
-                    timeText: '1h',
-                    message: 'Bạn đã đặt lịch hẹn thành công với bác sĩ Nguyễn Văn A',
-                  ),
-                  _NotificationTile(
-                    type: _NotificationType.danger,
-                    title: 'Đã hủy lịch hẹn',
-                    timeText: '2h',
-                    message: 'Bạn đã hủy lịch hẹn thành công với bác sĩ Lê Thị B',
-                    highlighted: true,
-                  ),
-                  _NotificationTile(
-                    type: _NotificationType.neutral,
-                    title: 'Đã thay đổi lịch hẹn',
-                    timeText: '8h',
-                    message: 'Bạn đã thay đổi lịch hẹn thành công với bác sĩ Phùng Thanh D',
-                  ),
-                  SizedBox(height: 16),
-                  _SectionHeader(title: 'HÔM QUA'),
-                  _NotificationTile(
-                    type: _NotificationType.success,
-                    title: 'Đặt lịch thành công',
-                    timeText: '1d',
-                    message: 'Bạn đã đặt lịch hẹn thành công với bác sĩ Nguyễn Văn C',
-                  ),
-                ],
+              child: _buildBody(
+                allItems: allItems,
+                todayItems: todayItems,
+                yesterdayItems: yesterdayItems,
+                olderItems: olderItems,
               ),
             ),
           ],
@@ -89,12 +151,101 @@ class NotificationScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildBody({
+    required List<UserNotification> allItems,
+    required List<UserNotification> todayItems,
+    required List<UserNotification> yesterdayItems,
+    required List<UserNotification> olderItems,
+  }) {
+    if (!_store.isLoaded) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (allItems.isEmpty) {
+      return const Center(
+        child: Text(
+          'Bạn chưa có thông báo nào',
+          style: TextStyle(fontSize: 14, color: Color(0xFF9CA3AF)),
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refreshNotifications,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 12),
+        children: [
+          if (todayItems.isNotEmpty) ...[
+            _SectionHeader(
+              title: 'HÔM NAY',
+              hasUnread: todayItems.any((item) => !item.isRead),
+              onMarkReadTap: () => _markSectionAsRead(todayItems),
+            ),
+            ...todayItems.map(
+              (item) => _NotificationTile(
+                item: item,
+                timeText: _relativeTimeText(item.createdAt),
+                onTap: () => _markOneAsRead(item),
+              ),
+            ),
+          ],
+          if (yesterdayItems.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _SectionHeader(
+              title: 'HÔM QUA',
+              hasUnread: yesterdayItems.any((item) => !item.isRead),
+              onMarkReadTap: () => _markSectionAsRead(yesterdayItems),
+            ),
+            ...yesterdayItems.map(
+              (item) => _NotificationTile(
+                item: item,
+                timeText: _relativeTimeText(item.createdAt),
+                onTap: () => _markOneAsRead(item),
+              ),
+            ),
+          ],
+          if (olderItems.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            _SectionHeader(
+              title: 'CŨ HƠN',
+              hasUnread: olderItems.any((item) => !item.isRead),
+              onMarkReadTap: () => _markSectionAsRead(olderItems),
+            ),
+            ...olderItems.map(
+              (item) => _NotificationTile(
+                item: item,
+                timeText: _relativeTimeText(item.createdAt),
+                onTap: () => _markOneAsRead(item),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  String _relativeTimeText(DateTime createdAt) {
+    final now = DateTime.now();
+    final diff = now.difference(createdAt);
+
+    if (diff.inMinutes < 1) return 'vừa xong';
+    if (diff.inHours < 1) return '${diff.inMinutes}m';
+    if (diff.inDays < 1) return '${diff.inHours}h';
+    return '${diff.inDays}d';
+  }
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title});
+  const _SectionHeader({
+    required this.title,
+    required this.hasUnread,
+    required this.onMarkReadTap,
+  });
 
   final String title;
+  final bool hasUnread;
+  final VoidCallback onMarkReadTap;
 
   @override
   Widget build(BuildContext context) {
@@ -111,12 +262,17 @@ class _SectionHeader extends StatelessWidget {
               color: Color(0xFF6B7280),
             ),
           ),
-          const Text(
-            'Đánh dấu đã đọc',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.w700,
-              color: Color(0xFF1C2A3A),
+          InkWell(
+            onTap: hasUnread ? onMarkReadTap : null,
+            child: Text(
+              hasUnread ? 'Đánh dấu đã đọc' : 'Đã đọc',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: hasUnread
+                    ? const Color(0xFF1C2A3A)
+                    : const Color(0xFF9CA3AF),
+              ),
             ),
           ),
         ],
@@ -125,94 +281,91 @@ class _SectionHeader extends StatelessWidget {
   }
 }
 
-enum _NotificationType { success, danger, neutral }
-
 class _NotificationTile extends StatelessWidget {
   const _NotificationTile({
-    required this.type,
-    required this.title,
+    required this.item,
     required this.timeText,
-    required this.message,
-    this.highlighted = false,
+    required this.onTap,
   });
 
-  final _NotificationType type;
-  final String title;
+  final UserNotification item;
   final String timeText;
-  final String message;
-  final bool highlighted;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = switch (type) {
-      _NotificationType.success => const Color(0xFFDEF7E5),
-      _NotificationType.danger => const Color(0xFFFDE8E8),
-      _NotificationType.neutral => const Color(0xFFF3F4F6),
+    final bgColor = switch (item.type) {
+      UserNotificationType.success => const Color(0xFFDEF7E5),
+      UserNotificationType.danger => const Color(0xFFFDE8E8),
+      UserNotificationType.neutral => const Color(0xFFF3F4F6),
     };
 
-    final iconColor = switch (type) {
-      _NotificationType.success => const Color(0xFF014737),
-      _NotificationType.danger => const Color(0xFF771D1D),
-      _NotificationType.neutral => const Color(0xFF1C2A3A),
+    final iconColor = switch (item.type) {
+      UserNotificationType.success => const Color(0xFF014737),
+      UserNotificationType.danger => const Color(0xFF771D1D),
+      UserNotificationType.neutral => const Color(0xFF1C2A3A),
     };
 
-    final icon = switch (type) {
-      _NotificationType.success => Icons.event_available_outlined,
-      _NotificationType.danger => Icons.event_busy_outlined,
-      _NotificationType.neutral => Icons.event_note_outlined,
+    final icon = switch (item.type) {
+      UserNotificationType.success => Icons.event_available_outlined,
+      UserNotificationType.danger => Icons.event_busy_outlined,
+      UserNotificationType.neutral => Icons.event_note_outlined,
     };
 
-    return Container(
-      color: highlighted ? const Color(0xFFF9FAFB) : Colors.white,
-      padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
-      child: Row(
-        children: [
-          Container(
-            width: 60,
-            height: 60,
-            decoration: BoxDecoration(
-              color: bgColor,
-              shape: BoxShape.circle,
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        color: item.isRead ? Colors.white : const Color(0xFFF9FAFB),
+        padding: const EdgeInsets.fromLTRB(24, 8, 24, 8),
+        child: Row(
+          children: [
+            Container(
+              width: 60,
+              height: 60,
+              decoration: BoxDecoration(color: bgColor, shape: BoxShape.circle),
+              child: Icon(icon, size: 24, color: iconColor),
             ),
-            child: Icon(icon, size: 24, color: iconColor),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1C2A3A),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Text(
+                          item.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1C2A3A),
+                          ),
                         ),
                       ),
-                    ),
-                    Text(
-                      timeText,
-                      style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  message,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.5,
-                    color: Color(0xFF6B7280),
+                      Text(
+                        timeText,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 4),
+                  Text(
+                    item.message,
+                    style: const TextStyle(
+                      fontSize: 14,
+                      height: 1.5,
+                      color: Color(0xFF6B7280),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

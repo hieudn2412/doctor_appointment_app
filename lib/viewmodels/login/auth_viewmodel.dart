@@ -9,6 +9,7 @@ import 'package:doctor_appointment_app/data/implementations/local/session_manage
 import 'package:doctor_appointment_app/domain/entities/user.dart';
 import 'package:doctor_appointment_app/services/email_js_service.dart';
 import 'package:doctor_appointment_app/views/appointment/data/appointment_booking_store.dart';
+import 'package:doctor_appointment_app/views/home/data/notification_store.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -257,6 +258,7 @@ class AuthViewModel extends ChangeNotifier {
     String? address,
     String? birthDate,
     String? gender,
+    String? avatarUrl,
   }) async {
     _setLoading(true);
     _errorMessage = null;
@@ -280,6 +282,9 @@ class AuthViewModel extends ChangeNotifier {
       final cleanBirthDate = (birthDate != null && birthDate.trim().isNotEmpty)
           ? birthDate.trim()
           : null;
+      final cleanAvatarUrl = (avatarUrl != null && avatarUrl.trim().isNotEmpty)
+          ? avatarUrl.trim()
+          : null;
 
       final updatedRows = await _db.updateUserProfile(
         targetEmail,
@@ -288,6 +293,7 @@ class AuthViewModel extends ChangeNotifier {
         address: cleanAddress,
         birthDate: cleanBirthDate,
         gender: gender,
+        avatarUrl: cleanAvatarUrl,
       );
 
       if (updatedRows <= 0) {
@@ -469,6 +475,7 @@ class AuthViewModel extends ChangeNotifier {
   Future<void> _saveLoginSession(User user) async {
     await _session.saveSession(user);
     unawaited(_refreshAppointmentCacheSafe());
+    unawaited(_refreshNotificationCacheSafe());
   }
 
   Future<void> _refreshAppointmentCacheSafe() async {
@@ -477,6 +484,16 @@ class AuthViewModel extends ChangeNotifier {
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Refresh appointments after login failed: $e');
+      }
+    }
+  }
+
+  Future<void> _refreshNotificationCacheSafe() async {
+    try {
+      await NotificationStore.instance.refreshForCurrentUser();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Refresh notifications after login failed: $e');
       }
     }
   }
@@ -507,6 +524,7 @@ class AuthViewModel extends ChangeNotifier {
 
     await _session.clearSession();
     AppointmentBookingStore.instance.clearCache();
+    NotificationStore.instance.clearCache();
     notifyListeners();
   }
 
@@ -566,5 +584,4 @@ class AuthViewModel extends ChangeNotifier {
     }
     return null;
   }
-
 }

@@ -419,6 +419,7 @@ class DatabaseHelper {
     String? address,
     String? birthDate,
     String? gender,
+    String? avatarUrl,
   }) async {
     final db = await database;
     final data = <String, dynamic>{};
@@ -427,6 +428,7 @@ class DatabaseHelper {
     if (address != null) data['address'] = address;
     if (birthDate != null) data['birth_date'] = birthDate;
     if (gender != null) data['gender'] = gender;
+    if (avatarUrl != null) data['avatar_url'] = avatarUrl;
     if (data.isEmpty) return 0;
 
     return db.update(

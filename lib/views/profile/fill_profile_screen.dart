@@ -1,8 +1,13 @@
+import 'dart:io';
+
 import 'package:doctor_appointment_app/domain/entities/user.dart';
 import 'package:doctor_appointment_app/viewmodels/login/auth_viewmodel.dart';
 import 'package:doctor_appointment_app/views/home/home_screen.dart';
 import 'package:doctor_appointment_app/views/profile/fill_profile_success_dialog.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
 
 class FillProfileScreen extends StatefulWidget {
   const FillProfileScreen({super.key, this.isFirstTimeSetup = false});
@@ -14,18 +19,19 @@ class FillProfileScreen extends StatefulWidget {
 }
 
 class _FillProfileScreenState extends State<FillProfileScreen> {
-  static const String _profileAsset = 'assets/images/profile.png';
-
   late final TextEditingController _nameController;
   final _phoneController = TextEditingController();
   final _addressController = TextEditingController();
   final _birthController = TextEditingController();
+  final _imagePicker = ImagePicker();
   String? _gender;
+  String? _avatarValue;
   User? _currentUser;
 
   final _authViewModel = AuthViewModel();
   bool _isLoading = false;
   bool _isInitializing = true;
+  bool _isUpdatingAvatar = false;
 
   @override
   void initState() {
@@ -57,8 +63,74 @@ class _FillProfileScreenState extends State<FillProfileScreen> {
 
     setState(() {
       _gender = user?.gender;
+      _avatarValue = user?.avatarUrl;
       _isInitializing = false;
     });
+  }
+
+  Future<void> _pickAvatarFromGallery() async {
+    if (_isUpdatingAvatar) return;
+
+    setState(() => _isUpdatingAvatar = true);
+    try {
+      final picked = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 85,
+        maxWidth: 1200,
+      );
+
+      if (picked == null) {
+        if (!mounted) return;
+        setState(() => _isUpdatingAvatar = false);
+        return;
+      }
+
+      final savedPath = await _saveAvatarToAppStorage(picked);
+      if (!mounted) return;
+      setState(() {
+        _avatarValue = savedPath;
+        _isUpdatingAvatar = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isUpdatingAvatar = false);
+      final message = e.toString();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            message.contains('MissingPluginException')
+                ? 'Chưa tải plugin chọn ảnh. Vui lòng tắt app và chạy lại (không hot restart).'
+                : 'Không thể chọn ảnh đại diện',
+          ),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  Future<String> _saveAvatarToAppStorage(XFile sourceFile) async {
+    final docsDir = await getApplicationDocumentsDirectory();
+    final avatarDir = Directory(path.join(docsDir.path, 'avatars'));
+    if (!await avatarDir.exists()) {
+      await avatarDir.create(recursive: true);
+    }
+
+    final userId = _currentUser?.id ?? 0;
+    final extension = path.extension(sourceFile.path).toLowerCase();
+    final safeExtension = extension.isEmpty ? '.jpg' : extension;
+    final fileName =
+        'user_${userId}_${DateTime.now().millisecondsSinceEpoch}$safeExtension';
+    final targetPath = path.join(avatarDir.path, fileName);
+
+    try {
+      await sourceFile.saveTo(targetPath);
+    } catch (_) {
+      final bytes = await sourceFile.readAsBytes();
+      await File(targetPath).writeAsBytes(bytes, flush: true);
+    }
+
+    return targetPath;
   }
 
   Future<void> _onSave() async {
@@ -97,6 +169,7 @@ class _FillProfileScreenState extends State<FillProfileScreen> {
       address: _addressController.text.trim(),
       birthDate: _birthController.text.trim(),
       gender: _gender,
+      avatarUrl: _avatarValue,
     );
 
     if (!mounted) return;
@@ -174,34 +247,39 @@ class _FillProfileScreenState extends State<FillProfileScreen> {
                           shape: BoxShape.circle,
                           color: const Color(0xFFE5E7EB).withValues(alpha: 0.4),
                         ),
-                        child: ClipOval(
-                          child: Image.asset(
-                            _profileAsset,
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(
-                                Icons.account_circle_rounded,
-                                size: 202,
-                                color: Color(0xFFE5E7EB),
-                              );
-                            },
-                          ),
-                        ),
+                        child: ClipOval(child: _buildAvatarPreview()),
                       ),
                       Positioned(
                         bottom: 8,
                         right: 8,
-                        child: Container(
-                          width: 34,
-                          height: 34,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1C2A3A),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.edit,
-                            size: 18,
-                            color: Colors.white,
+                        child: InkWell(
+                          onTap:
+                              (_isLoading ||
+                                  _isInitializing ||
+                                  _isUpdatingAvatar)
+                              ? null
+                              : _pickAvatarFromGallery,
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            width: 34,
+                            height: 34,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF1C2A3A),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: _isUpdatingAvatar
+                                ? const Padding(
+                                    padding: EdgeInsets.all(8),
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: Colors.white,
+                                    ),
+                                  )
+                                : const Icon(
+                                    Icons.edit,
+                                    size: 18,
+                                    color: Colors.white,
+                                  ),
                           ),
                         ),
                       ),
@@ -302,6 +380,47 @@ class _FillProfileScreenState extends State<FillProfileScreen> {
                 ],
               ),
             ),
+    );
+  }
+
+  Widget _buildAvatarPreview() {
+    final avatar = _avatarValue?.trim() ?? '';
+    if (avatar.isNotEmpty) {
+      if (_isNetworkUrl(avatar)) {
+        return Image.network(
+          avatar,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _defaultAvatar(),
+        );
+      }
+
+      final file = File(avatar);
+      if (file.existsSync()) {
+        return Image.file(
+          file,
+          fit: BoxFit.cover,
+          errorBuilder: (_, _, _) => _defaultAvatar(),
+        );
+      }
+    }
+
+    return Image.asset(
+      'assets/images/profile.png',
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => _defaultAvatar(),
+    );
+  }
+
+  bool _isNetworkUrl(String value) {
+    final lower = value.toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
+  }
+
+  Widget _defaultAvatar() {
+    return const Icon(
+      Icons.account_circle_rounded,
+      size: 202,
+      color: Color(0xFFE5E7EB),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:doctor_appointment_app/domain/entities/user.dart';
 import 'package:doctor_appointment_app/viewmodels/login/auth_viewmodel.dart';
 import 'package:doctor_appointment_app/views/appointment/manage_appointments_screen.dart';
@@ -74,7 +76,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       padding: const EdgeInsets.only(top: 14),
                       child: Column(
                         children: [
-                          _ProfileHeader(user: _user),
+                          _ProfileHeader(
+                            user: _user,
+                            onEditTap: _openEditProfile,
+                          ),
                           const SizedBox(height: 8),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 24),
@@ -241,9 +246,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 }
 
 class _ProfileHeader extends StatelessWidget {
-  const _ProfileHeader({required this.user});
+  const _ProfileHeader({required this.user, required this.onEditTap});
 
   final User? user;
+  final VoidCallback onEditTap;
 
   @override
   Widget build(BuildContext context) {
@@ -265,14 +271,18 @@ class _ProfileHeader extends StatelessWidget {
             Positioned(
               right: 20,
               bottom: 14,
-              child: Container(
-                width: 34,
-                height: 34,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1C2A3A),
-                  shape: BoxShape.circle,
+              child: InkWell(
+                onTap: onEditTap,
+                borderRadius: BorderRadius.circular(17),
+                child: Container(
+                  width: 34,
+                  height: 34,
+                  decoration: const BoxDecoration(
+                    color: Color(0xFF1C2A3A),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.edit, size: 18, color: Colors.white),
                 ),
-                child: const Icon(Icons.edit, size: 18, color: Colors.white),
               ),
             ),
           ],
@@ -302,11 +312,22 @@ class _ProfileHeader extends StatelessWidget {
   Widget _buildAvatarImage() {
     final avatarUrl = user?.avatarUrl?.trim() ?? '';
     if (avatarUrl.isNotEmpty) {
-      return Image.network(
-        avatarUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => _fallbackAvatar(),
-      );
+      if (_isNetworkUrl(avatarUrl)) {
+        return Image.network(
+          avatarUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _fallbackAvatar(),
+        );
+      }
+
+      final localFile = File(avatarUrl);
+      if (localFile.existsSync()) {
+        return Image.file(
+          localFile,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => _fallbackAvatar(),
+        );
+      }
     }
 
     return Image.asset(
@@ -321,6 +342,11 @@ class _ProfileHeader extends StatelessWidget {
       color: Color(0xFFE5E7EB),
       child: Icon(Icons.person, size: 84, color: Color(0xFF6B7280)),
     );
+  }
+
+  bool _isNetworkUrl(String value) {
+    final lower = value.toLowerCase();
+    return lower.startsWith('http://') || lower.startsWith('https://');
   }
 }
 
