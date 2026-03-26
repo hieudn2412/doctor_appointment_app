@@ -6,7 +6,6 @@ import 'package:doctor_appointment_app/views/home/notification_screen.dart';
 import 'package:doctor_appointment_app/views/profile/profile_screen.dart';
 import 'package:doctor_appointment_app/views/home/widgets/home_bottom_menu_bar.dart';
 import 'package:doctor_appointment_app/views/home/widgets/home_content.dart';
-import 'package:doctor_appointment_app/views/home/widgets/home_status_row.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});

@@ -7,18 +7,19 @@ import 'package:flutter/foundation.dart';
 
 class AppointmentBookingStore extends ChangeNotifier {
   AppointmentBookingStore._() {
-    _loadingFuture = _loadBookings();
+    _loadingFuture = _loadBookingsForCurrentUser();
   }
 
   static final AppointmentBookingStore instance = AppointmentBookingStore._();
 
   final AppointmentDatabase _database = AppointmentDatabase.instance;
   final List<AppointmentBooking> _bookings = <AppointmentBooking>[];
-  late final Future<void> _loadingFuture;
+  late Future<void> _loadingFuture;
 
   bool _isLoaded = false;
   int _idCounter = 0;
   int _reviewIdCounter = 0;
+  int? _loadedUserId;
 
   bool get isLoaded => _isLoaded;
 
@@ -36,16 +37,34 @@ class AppointmentBookingStore extends ChangeNotifier {
     return List.unmodifiable(result);
   }
 
+  Future<void> refreshForCurrentUser() async {
+    _loadingFuture = _loadBookingsForCurrentUser();
+    await _loadingFuture;
+  }
+
+  void clearCache() {
+    _bookings.clear();
+    _loadedUserId = null;
+    _idCounter = 0;
+    _isLoaded = false;
+    notifyListeners();
+  }
+
   Future<String> addBooking({
     required DoctorItem doctor,
     required DateTime dateTime,
   }) async {
-    await _loadingFuture;
+    await _ensureReadyForCurrentUser();
+
+    if (_loadedUserId == null) {
+      throw Exception('Vui lòng đăng nhập để đặt lịch hẹn');
+    }
 
     _idCounter += 1;
     final booking = AppointmentBooking(
       id: 'appt_${_idCounter.toString().padLeft(3, '0')}',
-      doctorId: doctor.id.toString(),
+      userId: _loadedUserId!,
+      doctorId: doctor.id,
       doctorName: doctor.name,
       specialty: doctor.specialty,
       hospital: doctor.hospitalName,
@@ -53,36 +72,47 @@ class AppointmentBookingStore extends ChangeNotifier {
       dateTime: dateTime,
       status: AppointmentStatus.upcoming,
     );
+
     _bookings.add(booking);
     notifyListeners();
 
     try {
       await _database.insertBooking(booking);
-    } catch (_) {
+      return booking.id;
+    } catch (e) {
+      _bookings.removeWhere((b) => b.id == booking.id);
+      notifyListeners();
+      rethrow;
     }
-
-    return booking.id;
   }
 
   Future<void> cancelBooking(String bookingId) async {
-    await _loadingFuture;
+    await _ensureReadyForCurrentUser();
+
+    if (_loadedUserId == null) {
+      throw Exception('Vui lòng đăng nhập để thao tác lịch hẹn');
+    }
 
     final index = _bookings.indexWhere((b) => b.id == bookingId);
     if (index < 0) return;
-    
+
     final removed = _bookings.removeAt(index);
     notifyListeners();
 
     try {
-      await _database.deleteBooking(bookingId);
-    } catch (_) {
+      final deletedRows = await _database.deleteBooking(bookingId, _loadedUserId!);
+      if (deletedRows <= 0) {
+        throw Exception('Không tìm thấy lịch hẹn để hủy');
+      }
+    } catch (e) {
       _bookings.insert(index, removed);
       notifyListeners();
+      rethrow;
     }
   }
 
   Future<void> rescheduleBooking(String bookingId, DateTime newDateTime) async {
-    await _loadingFuture;
+    await _ensureReadyForCurrentUser();
 
     final index = _bookings.indexWhere((b) => b.id == bookingId);
     if (index < 0) return;
@@ -96,15 +126,19 @@ class AppointmentBookingStore extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _database.updateBooking(updated);
-    } catch (_) {
+      final updatedRows = await _database.updateBooking(updated);
+      if (updatedRows <= 0) {
+        throw Exception('Không thể đổi lịch hẹn');
+      }
+    } catch (e) {
       _bookings[index] = previous;
       notifyListeners();
+      rethrow;
     }
   }
 
   Future<void> markBookingCompleted(String bookingId) async {
-    await _loadingFuture;
+    await _ensureReadyForCurrentUser();
 
     final index = _bookings.indexWhere((b) => b.id == bookingId);
     if (index < 0) return;
@@ -115,85 +149,117 @@ class AppointmentBookingStore extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _database.updateBooking(updated);
-    } catch (_) {
+      final updatedRows = await _database.updateBooking(updated);
+      if (updatedRows <= 0) {
+        throw Exception('Không thể cập nhật trạng thái lịch hẹn');
+      }
+    } catch (e) {
       _bookings[index] = previous;
       notifyListeners();
+      rethrow;
     }
   }
 
   // --- Logic Review ---
 
-  /// Upsert: nếu bác sĩ này đã có review thì cập nhật, nếu chưa thìm mới.
+  /// Upsert: nếu user đã review bác sĩ này thì cập nhật, nếu chưa thì thêm mới.
   Future<void> addReview({
     required String doctorId,
     required int rating,
     required String content,
   }) async {
-    await _loadingFuture;
+    await _ensureReadyForCurrentUser();
 
-    // Lấy tên hiện tại của người dùng từ Session
-    final currentUserName =
-        SessionManager.instance.currentUser?.name?.trim().isNotEmpty == true
-            ? SessionManager.instance.currentUser!.name!
-            : 'Người dùng';
-
-    // Kiểm tra xem đã có review cho bác sĩ này chưa
-    final existing = await _database.getMyReviewForDoctor(doctorId);
-
-    try {
-      if (existing != null) {
-        // Cập nhật review cũ (update cả tên nếu họ đã đổi tên)
-        final updated = DoctorReview(
-          id: existing.id,
-          doctorId: existing.doctorId,
-          rating: rating,
-          content: content,
-          userName: currentUserName,
-          createdAt: DateTime.now(),
-        );
-        await _database.updateReview(updated);
-      } else {
-        // Tạo review mới
-        _reviewIdCounter += 1;
-        final review = DoctorReview(
-          id: 'rev_${DateTime.now().millisecondsSinceEpoch}_$_reviewIdCounter',
-          doctorId: doctorId,
-          rating: rating,
-          content: content,
-          userName: currentUserName,
-          createdAt: DateTime.now(),
-        );
-        await _database.insertReview(review);
-      }
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error saving review: $e');
-      rethrow;
+    final currentUser = SessionManager.instance.currentUser;
+    if (currentUser == null || currentUser.id == null) {
+      throw Exception('Vui lòng đăng nhập để đánh giá bác sĩ');
     }
+
+    final currentUserName =
+        currentUser.name.trim().isNotEmpty ? currentUser.name : 'Người dùng';
+
+    final existing = await _database.getMyReviewForDoctor(
+      userId: currentUser.id!,
+      doctorId: doctorId,
+    );
+
+    if (existing != null) {
+      final updated = DoctorReview(
+        id: existing.id,
+        userId: existing.userId,
+        doctorId: existing.doctorId,
+        rating: rating,
+        content: content,
+        userName: currentUserName,
+        createdAt: DateTime.now(),
+      );
+      final updatedRows = await _database.updateReview(updated);
+      if (updatedRows <= 0) {
+        throw Exception('Không thể cập nhật đánh giá');
+      }
+    } else {
+      _reviewIdCounter += 1;
+      final review = DoctorReview(
+        id: 'rev_${DateTime.now().millisecondsSinceEpoch}_$_reviewIdCounter',
+        userId: currentUser.id!,
+        doctorId: doctorId,
+        rating: rating,
+        content: content,
+        userName: currentUserName,
+        createdAt: DateTime.now(),
+      );
+      await _database.insertReview(review);
+    }
+
+    notifyListeners();
   }
 
   Future<List<DoctorReview>> getReviewsForDoctor(String doctorId) async {
-    return await _database.getReviewsForDoctor(doctorId);
+    return _database.getReviewsForDoctor(doctorId);
   }
 
   /// Lấy review hiện tại của user cho bác sĩ (dùng để pre-fill form).
   Future<DoctorReview?> getMyReviewForDoctor(String doctorId) async {
-    return await _database.getMyReviewForDoctor(doctorId);
+    final userId = SessionManager.instance.currentUser?.id;
+    if (userId == null) return null;
+    return _database.getMyReviewForDoctor(userId: userId, doctorId: doctorId);
   }
 
   // --- Hệ thống ---
 
-  Future<void> _loadBookings() async {
+  Future<void> _ensureReadyForCurrentUser() async {
+    await _loadingFuture;
+
+    final currentUserId = SessionManager.instance.currentUser?.id;
+    if (currentUserId != _loadedUserId) {
+      _loadingFuture = _loadBookingsForCurrentUser();
+      await _loadingFuture;
+    }
+  }
+
+  Future<void> _loadBookingsForCurrentUser() async {
+    final userId = SessionManager.instance.currentUser?.id;
+
+    if (userId == null) {
+      _bookings.clear();
+      _loadedUserId = null;
+      _syncIdCounter();
+      _isLoaded = true;
+      notifyListeners();
+      return;
+    }
+
     try {
-      final storedBookings = await _database.getAllBookings().timeout(
-        const Duration(seconds: 5),
-      );
+      final storedBookings = await _database.getBookingsForUser(userId).timeout(
+            const Duration(seconds: 5),
+          );
       _bookings
         ..clear()
         ..addAll(storedBookings);
+      _loadedUserId = userId;
     } catch (_) {
       _bookings.clear();
+      _loadedUserId = userId;
     } finally {
       _syncIdCounter();
       _isLoaded = true;

@@ -1,3 +1,4 @@
+import 'package:doctor_appointment_app/views/admin/admin_home_screen.dart';
 import 'package:doctor_appointment_app/viewmodels/login/auth_viewmodel.dart';
 import 'package:doctor_appointment_app/views/home/home_screen.dart';
 import 'package:doctor_appointment_app/views/user/forgot_password_flow_screens.dart';
@@ -45,10 +46,7 @@ class _SignInScreenState extends State<SignInScreen> {
     setState(() => _isLoading = false);
 
     if (success) {
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute<void>(builder: (_) => const HomeScreen()),
-        (route) => false,
-      );
+      _navigateAfterLogin();
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -59,6 +57,37 @@ class _SignInScreenState extends State<SignInScreen> {
         ),
       );
     }
+  }
+
+  Future<void> _onGoogleSignIn() async {
+    setState(() => _isLoading = true);
+    final success = await _authViewModel.signInWithGoogle();
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (success) {
+      _navigateAfterLogin();
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(_authViewModel.errorMessage ?? 'Đăng nhập Google thất bại'),
+        backgroundColor: const Color(0xFFEF4444),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  void _navigateAfterLogin() {
+    final isAdmin = _authViewModel.currentUser?.role == 'admin';
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute<void>(
+        builder: (_) => isAdmin ? const AdminHomeScreen() : const HomeScreen(),
+      ),
+      (route) => false,
+    );
   }
 
   @override
@@ -90,7 +119,7 @@ class _SignInScreenState extends State<SignInScreen> {
                   label: 'Đăng nhập bằng Google',
                   icon: Icons.g_mobiledata_rounded,
                   iconColor: const Color(0xFFEA4335),
-                  onPressed: () {},
+                  onPressed: _isLoading ? () {} : _onGoogleSignIn,
                 ),
                 const SizedBox(height: 16),
                 _SocialButton(
@@ -120,7 +149,8 @@ class _SignInScreenState extends State<SignInScreen> {
           height: 66,
           color: const Color(0xFF1C2A3A),
           colorBlendMode: BlendMode.srcIn,
-          errorBuilder: (_, __, ___) => const Icon(Icons.local_hospital_outlined, size: 66, color: Color(0xFF1C2A3A)),
+          errorBuilder: (context, error, stackTrace) =>
+              const Icon(Icons.local_hospital_outlined, size: 66, color: Color(0xFF1C2A3A)),
         ),
         const SizedBox(height: 16),
         const Text(

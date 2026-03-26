@@ -4,23 +4,20 @@ import 'package:doctor_appointment_app/views/appointment/models/doctor_review.da
 import 'package:sqflite/sqflite.dart';
 
 class AppointmentDatabase {
-  AppointmentDatabase._() {
-    _initFuture = _createTableIfNeeded();
-  }
+  AppointmentDatabase._();
 
   static final AppointmentDatabase instance = AppointmentDatabase._();
 
   static const String _tableName = 'appointments';
   static const String _reviewTable = 'doctor_reviews';
 
-  late final Future<void> _initFuture;
-
   Future<void> _createTableIfNeeded() async {
     final db = await DatabaseHelper.instance.database;
-    // Bảng appointments
+
     await db.execute('''
       CREATE TABLE IF NOT EXISTS $_tableName (
         id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
         doctor_id TEXT,
         doctor_name TEXT NOT NULL,
         specialty TEXT NOT NULL,
@@ -31,10 +28,10 @@ class AppointmentDatabase {
       )
     ''');
 
-    // Bảng reviews
     await db.execute('''
       CREATE TABLE IF NOT EXISTS $_reviewTable (
         id TEXT PRIMARY KEY,
+        user_id INTEGER NOT NULL,
         doctor_id TEXT NOT NULL,
         rating INTEGER NOT NULL,
         content TEXT NOT NULL,
@@ -42,19 +39,49 @@ class AppointmentDatabase {
         created_at_ms INTEGER NOT NULL
       )
     ''');
+
+    await _addColumnIfNotExists(db, _tableName, 'user_id', 'INTEGER NOT NULL DEFAULT 0');
+    await _addColumnIfNotExists(db, _reviewTable, 'user_id', 'INTEGER NOT NULL DEFAULT 0');
+
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_appointments_user_id ON $_tableName(user_id)');
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_reviews_doctor_id ON $_reviewTable(doctor_id)');
+
+    // Unique constraint cho dữ liệu mới user_id > 0.
+    await db.execute(
+      'CREATE UNIQUE INDEX IF NOT EXISTS idx_reviews_user_doctor_unique '
+      'ON $_reviewTable(user_id, doctor_id) WHERE user_id > 0',
+    );
+  }
+
+  Future<void> _addColumnIfNotExists(
+    Database db,
+    String table,
+    String column,
+    String definition,
+  ) async {
+    final columns = await db.rawQuery('PRAGMA table_info($table)');
+    final exists = columns.any((c) => c['name'] == column);
+    if (!exists) {
+      await db.execute('ALTER TABLE $table ADD COLUMN $column $definition');
+    }
   }
 
   // --- Logic Appointments ---
 
-  Future<List<AppointmentBooking>> getAllBookings() async {
-    await _initFuture;
+  Future<List<AppointmentBooking>> getBookingsForUser(int userId) async {
+    await _createTableIfNeeded();
     final db = await DatabaseHelper.instance.database;
-    final rows = await db.query(_tableName, orderBy: 'date_time_ms ASC');
+    final rows = await db.query(
+      _tableName,
+      where: 'user_id = ?',
+      whereArgs: [userId],
+      orderBy: 'date_time_ms ASC',
+    );
     return rows.map(AppointmentBooking.fromMap).toList();
   }
 
   Future<void> insertBooking(AppointmentBooking booking) async {
-    await _initFuture;
+    await _createTableIfNeeded();
     final db = await DatabaseHelper.instance.database;
     await db.insert(
       _tableName,
@@ -63,20 +90,24 @@ class AppointmentDatabase {
     );
   }
 
-  Future<void> deleteBooking(String bookingId) async {
-    await _initFuture;
+  Future<int> deleteBooking(String bookingId, int userId) async {
+    await _createTableIfNeeded();
     final db = await DatabaseHelper.instance.database;
-    await db.delete(_tableName, where: 'id = ?', whereArgs: [bookingId]);
+    return db.delete(
+      _tableName,
+      where: 'id = ? AND user_id = ?',
+      whereArgs: [bookingId, userId],
+    );
   }
 
-  Future<void> updateBooking(AppointmentBooking booking) async {
-    await _initFuture;
+  Future<int> updateBooking(AppointmentBooking booking) async {
+    await _createTableIfNeeded();
     final db = await DatabaseHelper.instance.database;
-    await db.update(
+    return db.update(
       _tableName,
       booking.toMap(),
-      where: 'id = ?',
-      whereArgs: [booking.id],
+      where: 'id = ? AND user_id = ?',
+      whereArgs: [booking.id, booking.userId],
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }
@@ -84,17 +115,17 @@ class AppointmentDatabase {
   // --- Logic Reviews ---
 
   Future<void> insertReview(DoctorReview review) async {
-    await _initFuture;
+    await _createTableIfNeeded();
     final db = await DatabaseHelper.instance.database;
     await db.insert(
       _reviewTable,
       review.toMap(),
-      conflictAlgorithm: ConflictAlgorithm.replace,
+      conflictAlgorithm: ConflictAlgorithm.abort,
     );
   }
 
   Future<List<DoctorReview>> getReviewsForDoctor(String doctorId) async {
-    await _initFuture;
+    await _createTableIfNeeded();
     final db = await DatabaseHelper.instance.database;
     final rows = await db.query(
       _reviewTable,
@@ -106,28 +137,31 @@ class AppointmentDatabase {
   }
 
   /// Trả về review duy nhất của user cho bác sĩ (nếu có).
-  Future<DoctorReview?> getMyReviewForDoctor(String doctorId) async {
-    await _initFuture;
+  Future<DoctorReview?> getMyReviewForDoctor({
+    required int userId,
+    required String doctorId,
+  }) async {
+    await _createTableIfNeeded();
     final db = await DatabaseHelper.instance.database;
     final rows = await db.query(
       _reviewTable,
-      where: 'doctor_id = ?',
-      whereArgs: [doctorId],
-      orderBy: 'created_at_ms ASC',
+      where: 'user_id = ? AND doctor_id = ?',
+      whereArgs: [userId, doctorId],
+      orderBy: 'created_at_ms DESC',
       limit: 1,
     );
     if (rows.isEmpty) return null;
     return DoctorReview.fromMap(rows.first);
   }
 
-  Future<void> updateReview(DoctorReview review) async {
-    await _initFuture;
+  Future<int> updateReview(DoctorReview review) async {
+    await _createTableIfNeeded();
     final db = await DatabaseHelper.instance.database;
-    await db.update(
+    return db.update(
       _reviewTable,
       review.toMap(),
-      where: 'id = ?',
-      whereArgs: [review.id],
+      where: 'id = ? AND user_id = ?',
+      whereArgs: [review.id, review.userId],
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
   }

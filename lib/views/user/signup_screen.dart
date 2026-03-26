@@ -18,7 +18,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  
+
   // Sử dụng AuthViewModel (Singleton đã được cập nhật)
   final _authViewModel = AuthViewModel();
 
@@ -47,7 +47,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
           content: const Text('Vui lòng đồng ý với điều khoản sử dụng'),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
       return;
@@ -72,14 +74,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
           content: const Text('Đăng ký thành công!'),
           backgroundColor: const Color(0xFF10B981),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
-      
+
       // Chuyển sang màn hình hoàn thiện hồ sơ
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
-          builder: (_) => const FillProfileScreen(),
+          builder: (_) => const FillProfileScreen(isFirstTimeSetup: true),
         ),
       );
     } else {
@@ -89,7 +93,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
           content: Text(_authViewModel.errorMessage ?? 'Đăng ký thất bại'),
           backgroundColor: const Color(0xFFEF4444),
           behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
         ),
       );
     }
@@ -173,7 +179,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                             height: 22,
                             child: CircularProgressIndicator(
                               strokeWidth: 2.5,
-                              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                Colors.white,
+                              ),
                             ),
                           )
                         : const Text(
@@ -208,13 +216,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   child: GestureDetector(
                     onTap: () {
                       Navigator.of(context).pushReplacement(
-                        MaterialPageRoute<void>(builder: (_) => const SignInScreen()),
+                        MaterialPageRoute<void>(
+                          builder: (_) => const SignInScreen(),
+                        ),
                       );
                     },
                     child: RichText(
                       text: const TextSpan(
                         text: 'Bạn đã có tài khoản? ',
-                        style: TextStyle(color: Color(0xFF6B7280), fontSize: 14),
+                        style: TextStyle(
+                          color: Color(0xFF6B7280),
+                          fontSize: 14,
+                        ),
                         children: [
                           TextSpan(
                             text: 'Đăng nhập',
@@ -242,7 +255,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
       textInputAction: TextInputAction.next,
       textCapitalization: TextCapitalization.words,
       validator: _authViewModel.validateName,
-      decoration: _inputDecoration(hint: 'Họ và tên', icon: Icons.person_outline),
+      decoration: _inputDecoration(
+        hint: 'Họ và tên',
+        icon: Icons.person_outline,
+      ),
     );
   }
 
@@ -267,7 +283,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
         icon: Icons.lock_outline,
         suffixIcon: IconButton(
           icon: Icon(
-            _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            _obscurePassword
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
             size: 18,
             color: const Color(0xFF9CA3AF),
           ),
@@ -292,11 +310,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
         icon: Icons.lock_outline,
         suffixIcon: IconButton(
           icon: Icon(
-            _obscureConfirmPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            _obscureConfirmPassword
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
             size: 18,
             color: const Color(0xFF9CA3AF),
           ),
-          onPressed: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
+          onPressed: () => setState(
+            () => _obscureConfirmPassword = !_obscureConfirmPassword,
+          ),
         ),
       ),
     );
@@ -310,9 +332,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
           height: 24,
           child: Checkbox(
             value: _agreedToTerms,
-            onChanged: (value) => setState(() => _agreedToTerms = value ?? false),
+            onChanged: (value) =>
+                setState(() => _agreedToTerms = value ?? false),
             activeColor: const Color(0xFF1C2A3A),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(4),
+            ),
           ),
         ),
         const SizedBox(width: 8),
@@ -326,7 +351,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
     );
   }
 
-  InputDecoration _inputDecoration({required String hint, required IconData icon, Widget? suffixIcon}) {
+  InputDecoration _inputDecoration({
+    required String hint,
+    required IconData icon,
+    Widget? suffixIcon,
+  }) {
     return InputDecoration(
       hintText: hint,
       prefixIcon: Icon(icon, size: 18, color: const Color(0xFF9CA3AF)),
@@ -355,7 +384,11 @@ class _HeaderText extends StatelessWidget {
       children: [
         Text(
           'Đăng ký tài khoản',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Color(0xFF1C2A3A)),
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1C2A3A),
+          ),
         ),
         SizedBox(height: 8),
         Text(
@@ -385,7 +418,12 @@ class _OrSeparator extends StatelessWidget {
 }
 
 class _SocialButton extends StatelessWidget {
-  const _SocialButton({required this.label, required this.icon, required this.iconColor, required this.onPressed});
+  const _SocialButton({
+    required this.label,
+    required this.icon,
+    required this.iconColor,
+    required this.onPressed,
+  });
   final String label;
   final IconData icon;
   final Color iconColor;

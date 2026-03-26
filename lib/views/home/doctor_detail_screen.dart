@@ -1,4 +1,3 @@
-import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
 import 'package:doctor_appointment_app/views/appointment/appointment_screen.dart';
 import 'package:doctor_appointment_app/views/appointment/data/appointment_booking_store.dart';
 import 'package:doctor_appointment_app/views/appointment/models/doctor_review.dart';
@@ -439,10 +438,6 @@ class _UserReviewTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final displayName = (SessionManager.instance.currentUser?.name?.trim().isNotEmpty == true)
-        ? SessionManager.instance.currentUser!.name!
-        : review.userName;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -464,7 +459,7 @@ class _UserReviewTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  displayName,
+                  review.userName,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,

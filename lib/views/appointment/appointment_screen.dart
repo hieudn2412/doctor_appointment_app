@@ -339,6 +339,11 @@ class _AppointmentScreenState extends State<AppointmentScreen> {
       }
       if (!mounted) return;
       _showSuccessDialog(isUpdate: isUpdate);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Không thể lưu lịch hẹn: $e')),
+      );
     } finally {
       if (mounted) {
         setState(() {

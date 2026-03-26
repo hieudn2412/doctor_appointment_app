@@ -1,4 +1,3 @@
-import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
 import 'package:doctor_appointment_app/views/appointment/data/appointment_booking_store.dart';
 import 'package:doctor_appointment_app/views/appointment/models/doctor_review.dart';
 import 'package:flutter/material.dart';
@@ -18,7 +17,8 @@ class DoctorReviewsScreen extends StatefulWidget {
 }
 
 class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
-  List<DoctorReview> _userReviews = [];
+  List<DoctorReview> _reviews = [];
+  DoctorReview? _myReview;
   bool _isLoading = true;
 
   // Review mẫu cố định
@@ -49,16 +49,23 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
   Future<void> _loadReviews() async {
     final reviews =
         await AppointmentBookingStore.instance.getReviewsForDoctor(widget.doctorId);
-    if (mounted) {
-      setState(() {
-        _userReviews = reviews;
-        _isLoading = false;
-      });
-    }
+    final myReview =
+        await AppointmentBookingStore.instance.getMyReviewForDoctor(widget.doctorId);
+
+    if (!mounted) return;
+    setState(() {
+      _reviews = reviews;
+      _myReview = myReview;
+      _isLoading = false;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final otherReviews = _myReview == null
+        ? _reviews
+        : _reviews.where((r) => r.id != _myReview!.id).toList();
+
     return Scaffold(
       backgroundColor: const Color(0xFFF3F4F6),
       body: SafeArea(
@@ -93,7 +100,6 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
                 Expanded(
                   child: ListView(
                     children: [
-                      // Review mẫu cố định
                       for (final r in _staticReviews) ...[
                         _ReviewItem(
                           customerName: r['name'] as String,
@@ -103,8 +109,7 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
                         ),
                         const SizedBox(height: 12),
                       ],
-                      // Reviews thực tế từ người dùng
-                      if (_userReviews.isNotEmpty) ...[
+                      if (_myReview != null) ...[
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: Row(
@@ -125,14 +130,32 @@ class _DoctorReviewsScreenState extends State<DoctorReviewsScreen> {
                             ],
                           ),
                         ),
-                        for (final review in _userReviews) ...[
+                        _ReviewItem(
+                          customerName: _myReview!.userName,
+                          rating: _myReview!.rating,
+                          reviewText: _myReview!.content,
+                          isUserReview: true,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (otherReviews.isNotEmpty) ...[
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 8),
+                          child: Text(
+                            'Nhận xét người dùng',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF6B7280),
+                            ),
+                          ),
+                        ),
+                        for (final review in otherReviews) ...[
                           _ReviewItem(
-                            customerName: (SessionManager.instance.currentUser?.name?.trim().isNotEmpty == true)
-                                ? SessionManager.instance.currentUser!.name!
-                                : review.userName,
+                            customerName: review.userName,
                             rating: review.rating,
                             reviewText: review.content,
-                            isUserReview: true,
+                            isUserReview: false,
                           ),
                           const SizedBox(height: 12),
                         ],

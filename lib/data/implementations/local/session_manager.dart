@@ -1,5 +1,5 @@
-import 'dart:convert';
 import 'package:doctor_appointment_app/domain/entities/user.dart';
+import 'package:doctor_appointment_app/data/implementations/local/database_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Quản lý session người dùng bằng SharedPreferences.
@@ -12,7 +12,7 @@ class SessionManager {
 
   static final SessionManager instance = SessionManager._internal();
 
-  static const String _keyUserSession = 'user_session';
+  static const String _keyCurrentUserId = 'current_user_id';
   static const String _keyIsLoggedIn = 'is_logged_in';
 
   User? _currentUser;
@@ -27,10 +27,12 @@ class SessionManager {
 
   /// Lưu thông tin user vào SharedPreferences và giữ trong RAM.
   Future<void> saveSession(User user) async {
+    if (user.id == null) {
+      throw Exception('Không thể lưu session khi user chưa có id');
+    }
     _currentUser = user;
     final prefs = await SharedPreferences.getInstance();
-    final userJson = jsonEncode(user.toMap());
-    await prefs.setString(_keyUserSession, userJson);
+    await prefs.setInt(_keyCurrentUserId, user.id!);
     await prefs.setBool(_keyIsLoggedIn, true);
   }
 
@@ -43,15 +45,21 @@ class SessionManager {
     final isLoggedIn = prefs.getBool(_keyIsLoggedIn) ?? false;
     if (!isLoggedIn) return false;
 
-    final userJson = prefs.getString(_keyUserSession);
-    if (userJson == null) return false;
+    final userId = prefs.getInt(_keyCurrentUserId);
+    if (userId == null) {
+      await clearSession();
+      return false;
+    }
 
     try {
-      final map = jsonDecode(userJson) as Map<String, dynamic>;
-      _currentUser = User.fromMap(map);
+      final user = await DatabaseHelper.instance.getUserById(userId);
+      if (user == null) {
+        await clearSession();
+        return false;
+      }
+      _currentUser = user;
       return true;
-    } catch (e) {
-      // JSON hỏng → xóa session
+    } catch (_) {
       await clearSession();
       return false;
     }
@@ -70,7 +78,7 @@ class SessionManager {
   Future<void> clearSession() async {
     _currentUser = null;
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_keyUserSession);
+    await prefs.remove(_keyCurrentUserId);
     await prefs.setBool(_keyIsLoggedIn, false);
   }
 }

@@ -1,13 +1,55 @@
-import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
+import 'package:doctor_appointment_app/domain/entities/user.dart';
 import 'package:doctor_appointment_app/viewmodels/login/auth_viewmodel.dart';
 import 'package:doctor_appointment_app/views/appointment/manage_appointments_screen.dart';
 import 'package:doctor_appointment_app/views/home/doctor_list_screen.dart';
 import 'package:doctor_appointment_app/views/home/widgets/home_bottom_menu_bar.dart';
+import 'package:doctor_appointment_app/views/profile/fill_profile_screen.dart';
 import 'package:doctor_appointment_app/views/user/signin_screen.dart';
 import 'package:flutter/material.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _authViewModel = AuthViewModel();
+  User? _user;
+  bool _isLoadingProfile = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+  }
+
+  Future<void> _loadProfile() async {
+    if (!mounted) return;
+    setState(() => _isLoadingProfile = true);
+
+    final user =
+        await _authViewModel.reloadCurrentUserByEmail() ??
+        _authViewModel.currentUser;
+
+    if (!mounted) return;
+    setState(() {
+      _user = user;
+      _isLoadingProfile = false;
+    });
+  }
+
+  Future<void> _openEditProfile() async {
+    final updated = await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(builder: (_) => const FillProfileScreen()),
+    );
+
+    if (!mounted) return;
+    if (updated == true) {
+      await _loadProfile();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -26,62 +68,80 @@ class ProfileScreen extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.only(top: 14),
-                child: Column(
-                  children: [
-                    _ProfileHeader(),
-                    const SizedBox(height: 8),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _isLoadingProfile && _user == null
+                  ? const Center(child: CircularProgressIndicator())
+                  : SingleChildScrollView(
+                      padding: const EdgeInsets.only(top: 14),
                       child: Column(
                         children: [
-                          _ProfileMenuItem(
-                            icon: Icons.edit_outlined,
-                            title: 'Chỉnh sửa hồ sơ',
-                            onTap: () {},
-                          ),
-                          const Divider(color: Color(0xFFE5E7EB), height: 1),
-                          _ProfileMenuItem(
-                            icon: Icons.notifications_none,
-                            title: 'Thông báo',
-                            onTap: () {},
-                          ),
-                          const Divider(color: Color(0xFFE5E7EB), height: 1),
-                          _ProfileMenuItem(
-                            icon: Icons.settings_outlined,
-                            title: 'Cài đặt',
-                            onTap: () {},
-                          ),
-                          const Divider(color: Color(0xFFE5E7EB), height: 1),
-                          _ProfileMenuItem(
-                            icon: Icons.help_outline,
-                            title: 'Trợ giúp & Hỗ trợ',
-                            onTap: () {},
-                          ),
-                          const Divider(color: Color(0xFFE5E7EB), height: 1),
-                          _ProfileMenuItem(
-                            icon: Icons.security_outlined,
-                            title: 'Điều khoản và điều kiện',
-                            onTap: () {},
-                          ),
-                          const Divider(color: Color(0xFFE5E7EB), height: 1),
-                          _ProfileMenuItem(
-                            icon: Icons.logout,
-                            title: 'Đăng xuất',
-                            showArrow: false,
-                            onTap: () => _showLogoutModal(context),
+                          _ProfileHeader(user: _user),
+                          const SizedBox(height: 8),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 24),
+                            child: Column(
+                              children: [
+                                _ProfileMenuItem(
+                                  icon: Icons.edit_outlined,
+                                  title: 'Chỉnh sửa hồ sơ',
+                                  onTap: _openEditProfile,
+                                ),
+                                const Divider(
+                                  color: Color(0xFFE5E7EB),
+                                  height: 1,
+                                ),
+                                _ProfileMenuItem(
+                                  icon: Icons.notifications_none,
+                                  title: 'Thông báo',
+                                  onTap: () {},
+                                ),
+                                const Divider(
+                                  color: Color(0xFFE5E7EB),
+                                  height: 1,
+                                ),
+                                _ProfileMenuItem(
+                                  icon: Icons.settings_outlined,
+                                  title: 'Cài đặt',
+                                  onTap: () {},
+                                ),
+                                const Divider(
+                                  color: Color(0xFFE5E7EB),
+                                  height: 1,
+                                ),
+                                _ProfileMenuItem(
+                                  icon: Icons.help_outline,
+                                  title: 'Trợ giúp & Hỗ trợ',
+                                  onTap: () {},
+                                ),
+                                const Divider(
+                                  color: Color(0xFFE5E7EB),
+                                  height: 1,
+                                ),
+                                _ProfileMenuItem(
+                                  icon: Icons.security_outlined,
+                                  title: 'Điều khoản và điều kiện',
+                                  onTap: () {},
+                                ),
+                                const Divider(
+                                  color: Color(0xFFE5E7EB),
+                                  height: 1,
+                                ),
+                                _ProfileMenuItem(
+                                  icon: Icons.logout,
+                                  title: 'Đăng xuất',
+                                  showArrow: false,
+                                  onTap: () => _showLogoutModal(context),
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
                     ),
-                  ],
-                ),
-              ),
             ),
             HomeBottomMenuBar(
               selectedTab: HomeMenuTab.profile,
-              onHomeTap: () => Navigator.of(context).popUntil((route) => route.isFirst),
+              onHomeTap: () =>
+                  Navigator.of(context).popUntil((route) => route.isFirst),
               onSearchTap: () {
                 Navigator.of(context).push(
                   MaterialPageRoute<void>(
@@ -159,11 +219,12 @@ class ProfileScreen extends StatelessWidget {
                       text: 'Đăng xuất',
                       isPrimary: true,
                       onTap: () async {
-                        // Xóa session và đăng xuất
-                        await AuthViewModel().logout();
+                        await _authViewModel.logout();
                         if (!context.mounted) return;
                         Navigator.of(context).pushAndRemoveUntil(
-                          MaterialPageRoute<void>(builder: (_) => const SignInScreen()),
+                          MaterialPageRoute<void>(
+                            builder: (_) => const SignInScreen(),
+                          ),
                           (route) => false,
                         );
                       },
@@ -180,11 +241,17 @@ class ProfileScreen extends StatelessWidget {
 }
 
 class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({required this.user});
+
+  final User? user;
+
   @override
   Widget build(BuildContext context) {
-    final user = SessionManager.instance.currentUser;
     final displayName = user?.name ?? 'Người dùng';
-    final displayPhone = user?.phone ?? '';
+    final phone = user?.phone?.trim() ?? '';
+    final displayPhone = phone.isEmpty ? 'Chưa cập nhật số điện thoại' : phone;
+    final displayEmail = user?.email ?? '';
+
     return Column(
       children: [
         Stack(
@@ -193,16 +260,7 @@ class _ProfileHeader extends StatelessWidget {
               width: 202,
               height: 202,
               decoration: const BoxDecoration(shape: BoxShape.circle),
-              child: ClipOval(
-                child: Image.asset(
-                  'assets/images/profile.png',
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const ColoredBox(
-                    color: Color(0xFFE5E7EB),
-                    child: Icon(Icons.person, size: 84, color: Color(0xFF6B7280)),
-                  ),
-                ),
-              ),
+              child: ClipOval(child: _buildAvatarImage()),
             ),
             Positioned(
               right: 20,
@@ -232,7 +290,36 @@ class _ProfileHeader extends StatelessWidget {
           displayPhone,
           style: const TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
         ),
+        if (displayEmail.isNotEmpty)
+          Text(
+            displayEmail,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF9CA3AF)),
+          ),
       ],
+    );
+  }
+
+  Widget _buildAvatarImage() {
+    final avatarUrl = user?.avatarUrl?.trim() ?? '';
+    if (avatarUrl.isNotEmpty) {
+      return Image.network(
+        avatarUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _fallbackAvatar(),
+      );
+    }
+
+    return Image.asset(
+      'assets/images/profile.png',
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) => _fallbackAvatar(),
+    );
+  }
+
+  Widget _fallbackAvatar() {
+    return const ColoredBox(
+      color: Color(0xFFE5E7EB),
+      child: Icon(Icons.person, size: 84, color: Color(0xFF6B7280)),
     );
   }
 }
@@ -270,7 +357,12 @@ class _ProfileMenuItem extends StatelessWidget {
                 ),
               ),
             ),
-            if (showArrow) const Icon(Icons.chevron_right, size: 18, color: Color(0xFF6B7280)),
+            if (showArrow)
+              const Icon(
+                Icons.chevron_right,
+                size: 18,
+                color: Color(0xFF6B7280),
+              ),
           ],
         ),
       ),

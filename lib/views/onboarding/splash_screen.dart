@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:doctor_appointment_app/data/implementations/local/session_manager.dart';
+import 'package:doctor_appointment_app/views/appointment/data/appointment_booking_store.dart';
+import 'package:doctor_appointment_app/views/admin/admin_home_screen.dart';
 import 'package:doctor_appointment_app/views/home/home_screen.dart';
 import 'package:doctor_appointment_app/views/onboarding/onboarding_screens.dart';
 import 'package:flutter/material.dart';
@@ -31,12 +33,12 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted) return;
 
     if (hasSession) {
-      // Đã có session → vào thẳng trang chủ
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute<void>(
-          builder: (_) => const HomeScreen(),
-        ),
-      );
+      await AppointmentBookingStore.instance.refreshForCurrentUser();
+      if (!mounted) return;
+      final isAdmin = SessionManager.instance.currentUser?.role == 'admin';
+      Navigator.of(context).pushReplacement(MaterialPageRoute<void>(
+        builder: (_) => isAdmin ? const AdminHomeScreen() : const HomeScreen(),
+      ));
     } else {
       // Chưa đăng nhập → màn hình onboarding
       Navigator.of(context).pushReplacement(

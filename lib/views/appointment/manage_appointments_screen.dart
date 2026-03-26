@@ -138,7 +138,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
       context: context,
       backgroundColor: Colors.transparent,
       barrierColor: const Color(0x66000000),
-      builder: (context) {
+      builder: (sheetContext) {
         return Container(
           height: 199,
           padding: const EdgeInsets.all(24),
@@ -179,7 +179,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
                   Expanded(
                     child: InkWell(
                       borderRadius: BorderRadius.circular(50),
-                      onTap: () => Navigator.of(context).pop(),
+                      onTap: () => Navigator.of(sheetContext).pop(),
                       child: Container(
                         height: 41,
                         alignment: Alignment.center,
@@ -203,8 +203,16 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
                     child: InkWell(
                       borderRadius: BorderRadius.circular(50),
                       onTap: () async {
-                        await _store.cancelBooking(bookingId);
-                        if (mounted) Navigator.of(context).pop();
+                        try {
+                          await _store.cancelBooking(bookingId);
+                          if (!mounted) return;
+                        Navigator.of(context).pop();
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Hủy lịch thất bại: $e')),
+                          );
+                        }
                       },
                       child: Container(
                         height: 41,
@@ -238,7 +246,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
       context: context,
       backgroundColor: Colors.transparent,
       barrierColor: const Color(0x66000000),
-      builder: (context) {
+      builder: (sheetContext) {
         return Container(
           height: 210,
           padding: const EdgeInsets.all(24),
@@ -280,7 +288,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
                   Expanded(
                     child: InkWell(
                       borderRadius: BorderRadius.circular(50),
-                      onTap: () => Navigator.of(context).pop(),
+                      onTap: () => Navigator.of(sheetContext).pop(),
                       child: Container(
                         height: 41,
                         alignment: Alignment.center,
@@ -304,10 +312,16 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
                     child: InkWell(
                       borderRadius: BorderRadius.circular(50),
                       onTap: () async {
-                        await _store.markBookingCompleted(booking.id);
-                        if (mounted) {
+                        try {
+                          await _store.markBookingCompleted(booking.id);
+                          if (!mounted) return;
                           Navigator.of(context).pop();
                           _openWriteReview(booking);
+                        } catch (e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Cập nhật thất bại: $e')),
+                          );
                         }
                       },
                       child: Container(
@@ -369,7 +383,7 @@ class _ManageAppointmentsScreenState extends State<ManageAppointmentsScreen>
   }
 }
 
-enum _AppointmentTabType { upcoming, completed, schedule }
+enum _AppointmentTabType { upcoming, completed }
 
 class _AppointmentList extends StatelessWidget {
   const _AppointmentList({
